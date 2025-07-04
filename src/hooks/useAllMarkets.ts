@@ -1,4 +1,4 @@
-// src/hooks/useAllMarkets.ts
+// src/hooks/useAllMarkets.ts - Fixed createMarket function
 import { useState, useCallback } from 'react';
 import { blockchainService, OnChainMarket } from '@/services/blockchain/service';
 
@@ -74,6 +74,7 @@ export function useAllMarkets() {
       .slice(0, 10);
   }, [markets]);
 
+  // ✅ FIXED: Create Market with proper initial outcome handling
   const createMarket = useCallback(async (
     userAccount: string,
     marketData: {
@@ -83,12 +84,17 @@ export function useAllMarkets() {
       resolutionCriteria: string;
       duration: number;
       initialBetAmount: string;
-      initialOutcome: boolean;
+      initialOutcome: boolean; // ✅ FIXED: Boolean type
     }
   ) => {
     try {
       console.log('🏗️ Creating new market on blockchain...');
+      console.log('📊 Market data:', {
+        ...marketData,
+        initialOutcome: marketData.initialOutcome ? 'YES' : 'NO' // Log for clarity
+      });
       
+      // ✅ Use createMarketManually (user pays gas)
       const result = await blockchainService.createMarketManually(
         userAccount as any,
         marketData
@@ -96,6 +102,8 @@ export function useAllMarkets() {
       
       if (result.success) {
         console.log('✅ Market created successfully!', result);
+        console.log('💸 User paid all gas fees');
+        
         // Refresh markets to include the new one
         await fetchMarkets();
         return result;
@@ -108,6 +116,11 @@ export function useAllMarkets() {
     }
   }, [fetchMarkets]);
 
+  // ✅ NEW: Get automated wallet info for debugging
+  const getAutomatedWalletInfo = useCallback(() => {
+    return blockchainService.getAutomatedWalletInfo();
+  }, []);
+
   return {
     loading,
     markets,
@@ -118,6 +131,7 @@ export function useAllMarkets() {
     getMarketsByCategory,
     getActiveMarkets,
     getRecentMarkets,
-    createMarket,
+    createMarket, // ✅ Fixed function
+    getAutomatedWalletInfo, // ✅ New function for debugging
   };
 }

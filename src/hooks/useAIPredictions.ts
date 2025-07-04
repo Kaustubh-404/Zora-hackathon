@@ -1,4 +1,4 @@
-// src/hooks/useAIPredictions.ts
+// src/hooks/useAIPredictions.ts - Fixed with clear wallet usage
 import { useState, useCallback } from 'react';
 import { groqService } from '@/services/groq/client';
 import { farcasterService } from '@/services/farcaster/client';
@@ -33,14 +33,17 @@ export function useAIPredictions() {
       
       console.log('🎯 Generated AI predictions:', aiPredictions);
       
-      // Step 3: Create markets on blockchain automatically
+      // Step 3: Create markets on blockchain automatically with SYSTEM WALLET
       setCreatingOnChain(true);
-      console.log('⛓️ Creating markets on blockchain...');
+      console.log('⛓️ Creating AI markets on blockchain with AUTOMATED WALLET...');
+      console.log('🏦 System will pay all gas fees for AI-generated markets');
       
+      // ✅ Use automated market creation (system pays)
       const blockchainResult = await blockchainService.createAIGeneratedMarkets(aiPredictions);
       
       if (blockchainResult.success) {
-        console.log('✅ Successfully created markets on blockchain:', blockchainResult.createdMarkets);
+        console.log('✅ Successfully created AI markets on blockchain:', blockchainResult.createdMarkets);
+        console.log('💰 All gas fees paid by automated wallet');
         setOnChainMarkets(blockchainResult.createdMarkets);
         
         // Step 4: Fetch the newly created markets from blockchain
@@ -53,20 +56,20 @@ export function useAIPredictions() {
         }
         
         setPredictions(onChainMarkets);
-        console.log('🎯 Final on-chain predictions ready:', onChainMarkets);
+        console.log('🎯 Final AI-generated on-chain predictions ready:', onChainMarkets);
       } else {
-        console.warn('⚠️ Some markets failed to create:', blockchainResult.errors);
+        console.warn('⚠️ Some AI markets failed to create:', blockchainResult.errors);
         // Still show the AI predictions even if blockchain creation fails
         setPredictions(aiPredictions);
-        setError(`Some markets couldn't be created on-chain: ${blockchainResult.errors.join(', ')}`);
+        setError(`Some AI markets couldn't be created on-chain: ${blockchainResult.errors.join(', ')}`);
       }
       
       return aiPredictions;
       
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to generate predictions';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate AI predictions';
       setError(errorMessage);
-      console.error('❌ Prediction generation failed:', err);
+      console.error('❌ AI prediction generation failed:', err);
       return [];
     } finally {
       setLoading(false);
@@ -78,6 +81,24 @@ export function useAIPredictions() {
     return generatePredictions(fid);
   }, [generatePredictions]);
 
+  // ✅ NEW: Get wallet usage info
+  const getWalletUsageInfo = useCallback(() => {
+    const automatedInfo = blockchainService.getAutomatedWalletInfo();
+    return {
+      aiMarkets: {
+        wallet: 'Automated System Wallet',
+        address: automatedInfo.address,
+        paysGas: true,
+        purpose: 'AI-generated markets only'
+      },
+      manualMarkets: {
+        wallet: 'User Connected Wallet',
+        paysGas: true,
+        purpose: 'User-created markets'
+      }
+    };
+  }, []);
+
   return {
     loading,
     predictions,
@@ -87,5 +108,6 @@ export function useAIPredictions() {
     onChainMarkets,
     generatePredictions,
     refreshPredictions,
+    getWalletUsageInfo, // ✅ New function
   };
 }

@@ -35,7 +35,7 @@ export interface OnChainMarket {
 
 class BlockchainService {
   private publicClient;
-  private walletClient;
+  private automatedWalletClient;
   private automatedAccount;
 
   constructor() {
@@ -45,17 +45,16 @@ class BlockchainService {
       transport: http(),
     });
 
-    // Automated wallet for AI-generated markets
+    // ✅ Automated wallet for AI-generated markets ONLY
     this.automatedAccount = privateKeyToAccount(`0x${AUTOMATED_WALLET.privateKey}`);
-    this.walletClient = createWalletClient({
+    this.automatedWalletClient = createWalletClient({
       account: this.automatedAccount,
       chain: ZORA_TESTNET,
       transport: http(),
     });
   }
 
-  // ===== MARKET CREATION =====
-
+  // ===== MANUAL MARKET CREATION (USER PAYS) =====
   async createMarketManually(
     userAccount: Address,
     marketData: {
@@ -65,18 +64,30 @@ class BlockchainService {
       resolutionCriteria: string;
       duration: number; // in seconds
       initialBetAmount: string; // in ETH
-      initialOutcome: boolean;
+      initialOutcome: boolean; // ✅ FIXED: Properly pass the outcome
     }
   ): Promise<{ success: boolean; marketId?: number; txHash?: string; error?: string }> {
     try {
+      console.log('🏗️ Creating manual market with user wallet...');
+      console.log('💰 Initial bet outcome:', marketData.initialOutcome ? 'YES' : 'NO');
+      
+      // ✅ Create wallet client for user (not automated wallet)
       const userWalletClient = createWalletClient({
         account: userAccount,
         chain: ZORA_TESTNET,
         transport: http(),
       });
 
-      const totalValue = parseEther((parseFloat(marketData.initialBetAmount) + 0.001).toString()); // bet + fee
+      const betAmount = parseEther(marketData.initialBetAmount);
+      const creationFee = parseEther('0.001');
+      const totalValue = betAmount + creationFee;
 
+      console.log('💰 Payment breakdown:');
+      console.log(`  - Initial bet: ${marketData.initialBetAmount} ETH`);
+      console.log(`  - Creation fee: 0.001 ETH`);
+      console.log(`  - Total: ${formatEther(totalValue)} ETH`);
+
+      // ✅ Simulate the transaction first
       const { request } = await this.publicClient.simulateContract({
         address: CONTRACT_ADDRESSES.PREDICTION_MARKET_FACTORY as Address,
         abi: PREDICTION_MARKET_FACTORY_ABI,
@@ -87,27 +98,37 @@ class BlockchainService {
           marketData.category,
           marketData.resolutionCriteria,
           BigInt(marketData.duration),
-          marketData.initialOutcome,
+          marketData.initialOutcome, // ✅ FIXED: Pass the actual outcome
         ],
         value: totalValue,
         account: userAccount,
       });
 
+      console.log('📡 Sending transaction with user wallet...');
       const txHash = await userWalletClient.writeContract(request);
       
-      // Wait for transaction confirmation
+      console.log('⏳ Waiting for confirmation...', txHash);
       const receipt = await this.publicClient.waitForTransactionReceipt({ hash: txHash });
       
-      // Extract market ID from logs (simplified - in production you'd parse the event properly)
-      const marketCounter = await this.getMarketCounter();
-      
-      return {
-        success: true,
-        marketId: Number(marketCounter) - 1, // Latest created market
-        txHash,
-      };
+      if (receipt.status === 'success') {
+        // Get the market ID from the latest counter
+        const marketCounter = await this.getMarketCounter();
+        const marketId = Number(marketCounter) - 1;
+        
+        console.log('✅ Manual market created successfully!');
+        console.log('📊 Market ID:', marketId);
+        console.log('💸 User paid gas fees');
+        
+        return {
+          success: true,
+          marketId,
+          txHash,
+        };
+      } else {
+        throw new Error('Transaction failed');
+      }
     } catch (error) {
-      console.error('Error creating market manually:', error);
+      console.error('❌ Error creating manual market:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to create market',
@@ -115,6 +136,7 @@ class BlockchainService {
     }
   }
 
+  // ===== AI-GENERATED MARKET CREATION (SYSTEM PAYS) =====
   async createMarketAutomatically(
     marketData: {
       question: string;
@@ -125,10 +147,12 @@ class BlockchainService {
     }
   ): Promise<{ success: boolean; marketId?: number; txHash?: string; error?: string }> {
     try {
-      console.log('🤖 Creating automated market on-chain:', marketData.question);
+      console.log('🤖 Creating AI-generated market with automated wallet...');
+      console.log('📝 Question:', marketData.question);
 
       const initialLiquidity = parseEther('0.01'); // 0.01 ETH initial liquidity
 
+      // ✅ Use automated wallet for AI markets
       const { request } = await this.publicClient.simulateContract({
         address: CONTRACT_ADDRESSES.PREDICTION_MARKET_FACTORY as Address,
         abi: PREDICTION_MARKET_FACTORY_ABI,
@@ -141,22 +165,23 @@ class BlockchainService {
           BigInt(marketData.duration),
         ],
         value: initialLiquidity,
-        account: this.automatedAccount,
+        account: this.automatedAccount, // ✅ Use system wallet
         gas: BigInt(AUTOMATED_WALLET.gasLimit),
       });
 
-      const txHash = await this.walletClient.writeContract(request);
+      console.log('📡 Sending transaction with automated wallet...');
+      const txHash = await this.automatedWalletClient.writeContract(request);
       
-      console.log('📡 Transaction sent:', txHash);
-      
-      // Wait for confirmation
+      console.log('⏳ Waiting for confirmation...', txHash);
       const receipt = await this.publicClient.waitForTransactionReceipt({ hash: txHash });
       
       if (receipt.status === 'success') {
         const marketCounter = await this.getMarketCounter();
         const marketId = Number(marketCounter) - 1;
         
-        console.log('✅ Market created successfully! ID:', marketId);
+        console.log('✅ AI market created successfully!');
+        console.log('📊 Market ID:', marketId);
+        console.log('🏦 System paid gas fees');
         
         return {
           success: true,
@@ -176,7 +201,6 @@ class BlockchainService {
   }
 
   // ===== MARKET READING =====
-
   async getAllMarkets(): Promise<OnChainMarket[]> {
     try {
       console.log('📊 Fetching all markets from blockchain...');
@@ -279,8 +303,7 @@ class BlockchainService {
     }
   }
 
-  // ===== BETTING =====
-
+  // ===== BETTING (ALWAYS USER PAYS) =====
   async placeBet(
     userAccount: Address,
     marketId: number,
@@ -288,6 +311,10 @@ class BlockchainService {
     amount: string // in ETH
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
+      console.log('💰 Placing bet with user wallet...');
+      console.log(`📊 Market: ${marketId}, Outcome: ${outcome ? 'YES' : 'NO'}, Amount: ${amount} ETH`);
+      
+      // ✅ Always use user wallet for betting
       const userWalletClient = createWalletClient({
         account: userAccount,
         chain: ZORA_TESTNET,
@@ -309,12 +336,15 @@ class BlockchainService {
       
       await this.publicClient.waitForTransactionReceipt({ hash: txHash });
       
+      console.log('✅ Bet placed successfully!');
+      console.log('💸 User paid gas fees');
+      
       return {
         success: true,
         txHash,
       };
     } catch (error) {
-      console.error('Error placing bet:', error);
+      console.error('❌ Error placing bet:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to place bet',
@@ -323,7 +353,6 @@ class BlockchainService {
   }
 
   // ===== UTILITY FUNCTIONS =====
-
   private async getMarketCounter(): Promise<bigint> {
     return await this.publicClient.readContract({
       address: CONTRACT_ADDRESSES.PREDICTION_MARKET as Address,
@@ -353,14 +382,13 @@ class BlockchainService {
     }
   }
 
-  // ===== AI INTEGRATION =====
-
+  // ===== AI INTEGRATION (SYSTEM WALLET) =====
   async createAIGeneratedMarkets(aiPredictions: any[]): Promise<{
     success: boolean;
     createdMarkets: number[];
     errors: string[];
   }> {
-    console.log('🤖 Creating AI-generated markets on blockchain...');
+    console.log('🤖 Creating AI-generated markets with automated wallet...');
     
     const createdMarkets: number[] = [];
     const errors: string[] = [];
@@ -372,6 +400,7 @@ class BlockchainService {
       try {
         const duration = 7 * 24 * 60 * 60; // 7 days in seconds
         
+        // ✅ Use automated creation (system pays)
         const result = await this.createMarketAutomatically({
           question: prediction.question,
           description: prediction.description || `AI-generated prediction based on user interests`,
@@ -382,25 +411,38 @@ class BlockchainService {
 
         if (result.success && result.marketId !== undefined) {
           createdMarkets.push(result.marketId);
-          console.log(`✅ Created market ${result.marketId}: ${prediction.question}`);
+          console.log(`✅ Created AI market ${result.marketId}: ${prediction.question}`);
         } else {
-          errors.push(`Failed to create market: ${prediction.question} - ${result.error}`);
+          errors.push(`Failed to create AI market: ${prediction.question} - ${result.error}`);
         }
 
         // Small delay between creations to avoid nonce issues
         await new Promise(resolve => setTimeout(resolve, 2000));
         
       } catch (error) {
-        const errorMsg = `Error creating market "${prediction.question}": ${error instanceof Error ? error.message : 'Unknown error'}`;
+        const errorMsg = `Error creating AI market "${prediction.question}": ${error instanceof Error ? error.message : 'Unknown error'}`;
         errors.push(errorMsg);
         console.error(errorMsg);
       }
     }
 
+    console.log(`🎯 AI Market Creation Summary:`);
+    console.log(`✅ Created: ${createdMarkets.length} markets`);
+    console.log(`❌ Failed: ${errors.length} markets`);
+    console.log(`💰 System paid all gas fees for AI markets`);
+
     return {
       success: createdMarkets.length > 0,
       createdMarkets,
       errors,
+    };
+  }
+
+  // ===== WALLET INFO =====
+  getAutomatedWalletInfo() {
+    return {
+      address: this.automatedAccount.address,
+      purpose: 'AI-generated market creation only',
     };
   }
 }

@@ -37,10 +37,9 @@ const marketSchema = z.object({
   endTime: z.string().min(1, 'Please select an end time'),
   resolutionCriteria: z.string().min(30, 'Resolution criteria must be at least 30 characters').max(500, 'Resolution criteria must be less than 500 characters'),
   initialLiquidity: z.number().min(0.001, 'Minimum liquidity is 0.001 ETH').max(10, 'Maximum liquidity is 10 ETH'),
-  initialOutcome: z.boolean(),
+  initialOutcome: z.boolean(), // ✅ FIXED: Boolean type
   tags: z.array(z.string()).min(1, 'Please add at least one tag').max(5, 'Maximum 5 tags allowed'),
 });
-
 type MarketFormData = z.infer<typeof marketSchema>;
 
 const CATEGORIES = [
@@ -175,6 +174,7 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
     
     try {
       console.log('🚀 Deploying market to blockchain...');
+      console.log('💰 Initial outcome selected:', data.initialOutcome ? 'YES' : 'NO');
       
       // Calculate duration in seconds
       const endDate = new Date(`${data.endDate}T${data.endTime}`);
@@ -573,44 +573,52 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
                   <label className="block text-sm font-medium text-gray-700 mb-3">
                     Your Initial Prediction *
                   </label>
+                  <p className="text-sm text-gray-600 mb-3">
+            Choose your initial bet outcome. This helps bootstrap the market with initial liquidity.
+          </p>
                   <div className="grid grid-cols-2 gap-4">
-                    <label className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      watchedData.initialOutcome === true
-                        ? 'border-green-500 bg-green-50 text-green-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                      <input
-                        {...register('initialOutcome')}
-                        type="radio"
-                        value="true"
-                        onChange={() => setValue('initialOutcome', true)}
-                        className="sr-only"
-                      />
-                      <div className="text-center">
-                        <div className="text-xl font-bold mb-1">YES</div>
-                        <div className="text-sm">I predict this will happen</div>
-                      </div>
-                    </label>
-                    
-                    <label className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      watchedData.initialOutcome === false
-                        ? 'border-red-500 bg-red-50 text-red-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                      <input
-                        {...register('initialOutcome')}
-                        type="radio"
-                        value="false"
-                        onChange={() => setValue('initialOutcome', false)}
-                        className="sr-only"
-                      />
-                      <div className="text-center">
-                        <div className="text-xl font-bold mb-1">NO</div>
-                        <div className="text-sm">I predict this won't happen</div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
+            <button
+              type="button"
+              onClick={() => setValue('initialOutcome', true, { shouldValidate: true })}
+              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                watchedData.initialOutcome === true
+                  ? 'border-green-500 bg-green-50 text-green-700'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <div className="text-center">
+                <div className="text-xl font-bold mb-1">YES</div>
+                <div className="text-sm">I predict this will happen</div>
+                {watchedData.initialOutcome === true && (
+                  <div className="text-xs text-green-600 mt-1 font-medium">✓ Selected</div>
+                )}
+              </div>
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => setValue('initialOutcome', false, { shouldValidate: true })}
+              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                watchedData.initialOutcome === false
+                  ? 'border-red-500 bg-red-50 text-red-700'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <div className="text-center">
+                <div className="text-xl font-bold mb-1">NO</div>
+                <div className="text-sm">I predict this won't happen</div>
+                {watchedData.initialOutcome === false && (
+                  <div className="text-xs text-red-600 mt-1 font-medium">✓ Selected</div>
+                )}
+              </div>
+            </button>
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            Current selection: <span className="font-medium">
+              {watchedData.initialOutcome === true ? 'YES' : 'NO'}
+            </span>
+          </div>
+        </div>
 
                 {/* Tags */}
                 <div>
@@ -713,82 +721,118 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
                   </p>
 
                   <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className={`text-center p-2 rounded-lg ${
-                      watchedData.initialOutcome ? 'bg-green-50' : 'bg-gray-50'
-                    }`}>
-                      <div className={`text-lg font-bold ${
-                        watchedData.initialOutcome ? 'text-green-600' : 'text-gray-600'
-                      }`}>50%</div>
-                      <div className="text-xs text-gray-500">YES</div>
-                    </div>
-                    <div className={`text-center p-2 rounded-lg ${
-                      !watchedData.initialOutcome ? 'bg-red-50' : 'bg-gray-50'
-                    }`}>
-                      <div className={`text-lg font-bold ${
-                        !watchedData.initialOutcome ? 'text-red-600' : 'text-gray-600'
-                      }`}>50%</div>
-                      <div className="text-xs text-gray-500">NO</div>
-                    </div>
-                    <div className="text-center p-2 bg-blue-50 rounded-lg">
-                      <div className="text-sm font-bold text-blue-600">
-                        {watchedData.initialLiquidity || 0} ETH
-                      </div>
-                      <div className="text-xs text-blue-700">LIQUIDITY</div>
-                    </div>
-                  </div>
+            <div className={`text-center p-2 rounded-lg ${
+              watchedData.initialOutcome === true ? 'bg-green-50' : 'bg-gray-50'
+            }`}>
+              <div className={`text-lg font-bold ${
+                watchedData.initialOutcome === true ? 'text-green-600' : 'text-gray-600'
+              }`}>50%</div>
+              <div className="text-xs text-gray-500">YES</div>
+              {watchedData.initialOutcome === true && (
+                <div className="text-xs text-green-600 font-medium">Your bet</div>
+              )}
+            </div>
+            <div className={`text-center p-2 rounded-lg ${
+              watchedData.initialOutcome === false ? 'bg-red-50' : 'bg-gray-50'
+            }`}>
+              <div className={`text-lg font-bold ${
+                watchedData.initialOutcome === false ? 'text-red-600' : 'text-gray-600'
+              }`}>50%</div>
+              <div className="text-xs text-gray-500">NO</div>
+              {watchedData.initialOutcome === false && (
+                <div className="text-xs text-red-600 font-medium">Your bet</div>
+              )}
+            </div>
+            <div className="text-center p-2 bg-blue-50 rounded-lg">
+              <div className="text-sm font-bold text-blue-600">
+                {watchedData.initialLiquidity || 0} ETH
+              </div>
+              <div className="text-xs text-blue-700">LIQUIDITY</div>
+            </div>
+          </div>
 
-                  {watchedTags.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {watchedTags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded"
-                        >
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+          {watchedTags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {watchedTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded"
+                >
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+                {/* ✅ FIXED: Deployment Cost Estimate with correct outcome */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start space-x-3">
+            <DollarSign className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-blue-900">Deployment Cost Breakdown</h4>
+              <div className="text-blue-800 text-sm mt-1 space-y-1">
+                <div className="flex justify-between">
+                  <span>Initial Bet ({watchedData.initialOutcome ? 'YES' : 'NO'}):</span>
+                  <span>{watchedData.initialLiquidity || 0} ETH</span>
                 </div>
-
-                {/* Deployment Cost Estimate */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start space-x-3">
-                    <DollarSign className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-blue-900">Deployment Cost Breakdown</h4>
-                      <div className="text-blue-800 text-sm mt-1 space-y-1">
-                        <div className="flex justify-between">
-                          <span>Initial Bet ({watchedData.initialOutcome ? 'YES' : 'NO'}):</span>
-                          <span>{watchedData.initialLiquidity || 0} ETH</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Market Creation Fee:</span>
-                          <span>0.001 ETH</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Estimated Gas Fees:</span>
-                          <span>~0.002 ETH</span>
-                        </div>
-                        <div className="flex justify-between font-medium border-t border-blue-300 pt-1">
-                          <span>Total Cost:</span>
-                          <span>~{((watchedData.initialLiquidity || 0) + 0.003).toFixed(4)} ETH</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                <div className="flex justify-between">
+                  <span>Market Creation Fee:</span>
+                  <span>0.001 ETH</span>
                 </div>
-
-                {/* Resolution Criteria Summary */}
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Resolution Criteria</h4>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-gray-700 text-sm">
-                      {watchedData.resolutionCriteria || 'Resolution criteria not set...'}
-                    </p>
-                  </div>
+                <div className="flex justify-between">
+                  <span>Estimated Gas Fees:</span>
+                  <span>~0.002 ETH</span>
+                </div>
+                <div className="flex justify-between font-medium border-t border-blue-300 pt-1">
+                  <span>Total Cost (User Pays):</span>
+                  <span>~{((watchedData.initialLiquidity || 0) + 0.003).toFixed(4)} ETH</span>
                 </div>
               </div>
+              <div className="bg-blue-100 rounded p-2 mt-2">
+                <p className="text-xs text-blue-800">
+                  <strong>💳 Payment Source:</strong> Your connected wallet will pay all fees
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Resolution Criteria Summary */}
+        <div>
+          <h4 className="font-semibold text-gray-900 mb-3">Resolution Criteria</h4>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p className="text-gray-700 text-sm">
+              {watchedData.resolutionCriteria || 'Resolution criteria not set...'}
+            </p>
+          </div>
+        </div>
+
+        {/* ✅ FIXED: Initial Bet Summary */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+          <h4 className="font-medium text-green-900 mb-2">Your Initial Prediction</h4>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-800">
+                You're betting <strong>{watchedData.initialLiquidity || 0} ETH</strong> that the answer is{' '}
+                <strong className={watchedData.initialOutcome ? 'text-green-600' : 'text-red-600'}>
+                  {watchedData.initialOutcome ? 'YES' : 'NO'}
+                </strong>
+              </p>
+              <p className="text-xs text-green-700 mt-1">
+                This provides initial liquidity and sets the starting odds
+              </p>
+            </div>
+            <div className={`px-3 py-1 rounded-full text-sm font-bold ${
+              watchedData.initialOutcome 
+                ? 'bg-green-200 text-green-800' 
+                : 'bg-red-200 text-red-800'
+            }`}>
+              {watchedData.initialOutcome ? 'YES' : 'NO'}
+            </div>
+          </div>
+        </div>
+      </div>
             </motion.div>
           )}
 
