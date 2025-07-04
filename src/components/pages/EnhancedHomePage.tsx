@@ -1,6 +1,4 @@
-
-// File: src/components/pages/EnhancedHomePage.tsx
-
+// src/components/pages/EnhancedHomePage.tsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { usePrivy } from '@privy-io/react-auth';
@@ -8,6 +6,7 @@ import { useUserStore } from '@/store/userStore';
 import { useAIPredictions } from '@/hooks/useAIPredictions';
 import { useAllMarkets } from '@/hooks/useAllMarkets';
 import { SwipeInterface } from '@/components/swipe/SwipeInterface';
+import { blockchainService } from '@/services/blockchain/service';
 import { getUserAvatar, getUserDisplayName, hasLinkedFarcaster } from '@/utils/userHelpers';
 import { AppPage } from '../../types/Navigation';
 import { 
@@ -23,7 +22,8 @@ import {
   Trophy,
   Clock,
   Hash,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 
 interface EnhancedHomePageProps {
@@ -36,13 +36,27 @@ interface Bet {
   outcome: 'yes' | 'no';
   amount: number;
   timestamp: Date;
+  onChain?: boolean;
+  txHash?: string;
 }
 
 export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
   const { user } = usePrivy();
   const { user: userProfile, getPrimaryInterests } = useUserStore();
-  const { loading: aiLoading, predictions: aiPredictions, error: aiError, userData, generatePredictions } = useAIPredictions();
-  const { loading: marketsLoading, markets: allMarkets, error: marketsError, fetchMarkets } = useAllMarkets();
+  const { 
+    loading: aiLoading, 
+    predictions: aiPredictions, 
+    error: aiError, 
+    userData, 
+    creatingOnChain,
+    generatePredictions 
+  } = useAIPredictions();
+  const { 
+    loading: marketsLoading, 
+    markets: allMarkets, 
+    error: marketsError, 
+    fetchMarkets 
+  } = useAllMarkets();
   
   const [bets, setBets] = useState<Bet[]>([]);
   const [skippedPredictions, setSkippedPredictions] = useState<any[]>([]);
@@ -60,24 +74,19 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
   const userAvatar = getUserAvatar(user, userProfile);
   const hasFC = hasLinkedFarcaster(user, userProfile);
 
-  // Determine which predictions to show
+  // Determine which predictions to show - REAL DATA ONLY
   const predictions = hasFC ? aiPredictions : allMarkets;
-  const loading = hasFC ? aiLoading : marketsLoading;
+  const loading = hasFC ? (aiLoading || creatingOnChain) : marketsLoading;
   const error = hasFC ? aiError : marketsError;
 
-  // Auto-generate predictions on mount if user has Farcaster
+  // Load real blockchain data on mount
   useEffect(() => {
     if (hasFC && user?.farcaster?.fid && aiPredictions.length === 0 && !aiLoading) {
       handleGeneratePredictions();
-    }
-  }, [user?.farcaster?.fid, hasFC]);
-
-  // Fetch all markets if user doesn't have Farcaster
-  useEffect(() => {
-    if (!hasFC && allMarkets.length === 0 && !marketsLoading) {
+    } else if (!hasFC && allMarkets.length === 0 && !marketsLoading) {
       fetchMarkets();
     }
-  }, [hasFC]);
+  }, [user?.farcaster?.fid, hasFC]);
 
   const handleGeneratePredictions = async () => {
     if (!user?.farcaster?.fid) return;
@@ -115,16 +124,46 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
     setSkippedPredictions(prev => [...prev, prediction]);
   };
 
-  const handleBet = (prediction: any, outcome: 'yes' | 'no', amount: number) => {
-    const newBet: Bet = {
-      id: `bet_${Date.now()}`,
-      prediction,
-      outcome,
-      amount,
-      timestamp: new Date(),
-    };
-    
-    setBets(prev => [...prev, newBet]);
+  const handleBet = async (prediction: any, outcome: 'yes' | 'no', amount: number) => {
+    try {
+      console.log('🎯 Placing bet on blockchain...');
+      
+      if (!user?.wallet?.address) {
+        alert('Please connect your wallet to place bets');
+        return;
+      }
+
+      // Place bet on blockchain
+      const result = await blockchainService.placeBet(
+        user.wallet.address as `0x${string}`,
+        prediction.marketId || 0, // Use marketId from blockchain
+        outcome === 'yes',
+        amount.toString()
+      );
+
+      if (result.success) {
+        const newBet: Bet = {
+          id: `bet_${Date.now()}`,
+          prediction,
+          outcome,
+          amount,
+          timestamp: new Date(),
+          onChain: true,
+          txHash: result.txHash,
+        };
+        
+        setBets(prev => [...prev, newBet]);
+        console.log('✅ Bet placed successfully on blockchain!', result.txHash);
+        
+        // Show success message
+        alert(`Bet placed successfully! Transaction: ${result.txHash?.slice(0, 10)}...`);
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error('❌ Error placing bet:', error);
+      alert(`Failed to place bet: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const handleNeedMore = () => {
@@ -166,7 +205,7 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
               <p className="text-gray-600 mt-1">
                 {hasFC 
                   ? "Here are predictions personalized for you based on your Farcaster activity."
-                  : "Browse all prediction markets and start making predictions!"
+                  : "Browse all prediction markets on the blockchain and start making predictions!"
                 }
               </p>
             </div>
@@ -193,6 +232,30 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
           </div>
         </div>
 
+        {/* Blockchain Status Indicator */}
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+              <div>
+                <h3 className="font-medium text-gray-900">
+                  ⛓️ Connected to Zora Network
+                </h3>
+                <p className="text-sm text-gray-600">
+                  All markets are live on blockchain • Real money • Real predictions
+                </p>
+              </div>
+            </div>
+            
+            {creatingOnChain && (
+              <div className="flex items-center space-x-2 text-blue-600">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm font-medium">Creating markets on-chain...</span>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Farcaster Status & Manual Connection */}
         <div className="bg-white rounded-lg p-4 border mb-6">
           <div className="flex items-center justify-between">
@@ -200,12 +263,12 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
               <Users className="w-5 h-5 text-blue-500" />
               <div>
                 <h3 className="font-medium text-gray-900">
-                  {hasFC ? 'Farcaster Connected' : 'Farcaster Not Connected'}
+                  {hasFC ? 'Farcaster Connected' : 'Get Personalized Predictions'}
                 </h3>
                 <p className="text-sm text-gray-600">
                   {hasFC 
                     ? `Getting personalized predictions from @${user?.farcaster?.username || 'your'} activity`
-                    : 'Connect Farcaster for personalized predictions or browse all markets'
+                    : 'Enter your Farcaster ID to get AI-generated predictions based on your interests'
                   }
                 </p>
               </div>
@@ -264,11 +327,11 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                     >
                       {isLoadingManual ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <Zap className="w-4 h-4" />
                       )}
-                      <span>{isLoadingManual ? 'Loading...' : 'Get Predictions'}</span>
+                      <span>{isLoadingManual ? 'Loading...' : 'Generate'}</span>
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
@@ -342,102 +405,31 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
                 <span className="font-medium">{bets.length}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Engagement:</span>
-                <span className="font-medium">{engagementRate.toFixed(0)}%</span>
+                <span className="text-gray-600">Total wagered:</span>
+                <span className="font-medium">{totalWagered.toFixed(4)} ETH</span>
               </div>
             </div>
           </div>
 
           <div className="bg-white rounded-lg p-6 border">
-            <h3 className="font-semibold text-gray-900 mb-3">Quick Actions</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">Blockchain Stats</h3>
             <div className="space-y-2">
-              <button
-                onClick={() => onNavigate('markets')}
-                className="w-full text-left text-sm text-blue-600 hover:text-blue-700 flex items-center justify-between"
-              >
-                <span>Browse All Markets</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onNavigate('create')}
-                className="w-full text-left text-sm text-blue-600 hover:text-blue-700 flex items-center justify-between"
-              >
-                <span>Create Market</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onNavigate('rewards')}
-                className="w-full text-left text-sm text-blue-600 hover:text-blue-700 flex items-center justify-between"
-              >
-                <span>View Rewards</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Total Markets:</span>
+                <span className="font-medium">{allMarkets.length}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">On-chain Bets:</span>
+                <span className="font-medium">{bets.filter(b => b.onChain).length}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Network:</span>
+                <span className="font-medium text-purple-600">Zora</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Filters Panel */}
-      {showFilters && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          className="bg-white rounded-lg border p-6 mb-6"
-        >
-          <h3 className="font-semibold text-gray-900 mb-4">Filter Predictions</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-              <select 
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="">All Categories</option>
-                <option value="crypto">Crypto</option>
-                <option value="tech">Technology</option>
-                <option value="sports">Sports</option>
-                <option value="politics">Politics</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Time Frame</label>
-              <select 
-                value={filterTimeframe}
-                onChange={(e) => setFilterTimeframe(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="">Any Time</option>
-                <option value="1d">1 Day</option>
-                <option value="3d">3 Days</option>
-                <option value="1w">1 Week</option>
-                <option value="1m">1 Month</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Difficulty</label>
-              <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                <option value="">Any Difficulty</option>
-                <option value="easy">Easy (80%+ consensus)</option>
-                <option value="medium">Medium (60-80%)</option>
-                <option value="hard">Hard (50-60%)</option>
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={() => {
-                  setFilterCategory('');
-                  setFilterTimeframe('');
-                }}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                Clear Filters
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      )}
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-8">
@@ -447,7 +439,7 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-xl font-bold text-gray-900">
-                  {hasFC ? '🎯 Personalized Predictions' : '📊 All Prediction Markets'}
+                  {hasFC ? '🎯 AI-Generated Markets' : '📊 All Blockchain Markets'}
                 </h2>
                 {userData && (
                   <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -462,8 +454,8 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
               </div>
               <p className="text-gray-600">
                 {hasFC 
-                  ? "Swipe right to bet, left to skip. Topics tailored to your interests."
-                  : "Swipe through all available prediction markets. Connect Farcaster for personalized recommendations."
+                  ? "AI-generated markets created automatically on Zora blockchain based on your interests."
+                  : "Real prediction markets from the Zora blockchain. Connect Farcaster for personalized recommendations."
                 }
               </p>
             </div>
@@ -492,17 +484,19 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
               {loading || isGenerating || isLoadingManual ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <Loader2 className="w-12 h-12 text-blue-600 mx-auto mb-4 animate-spin" />
                     <p className="text-gray-600 font-medium">
-                      {isLoadingManual ? 'Generating personalized predictions...' 
-                       : isGenerating ? 'Generating personalized predictions...' 
-                       : hasFC ? 'Loading predictions...'
-                       : 'Loading all markets...'}
+                      {creatingOnChain ? 'Creating markets on blockchain...' :
+                       isLoadingManual ? 'Generating personalized predictions...' : 
+                       isGenerating ? 'Generating personalized predictions...' : 
+                       hasFC ? 'Loading predictions...' :
+                       'Loading blockchain markets...'}
                     </p>
                     <p className="text-gray-500 text-sm mt-1">
-                      {hasFC || isLoadingManual
+                      {creatingOnChain ? 'Deploying smart contracts on Zora Network' :
+                       hasFC || isLoadingManual
                         ? 'Analyzing Farcaster activity with AI'
-                        : 'Fetching all available prediction markets'
+                        : 'Fetching real markets from blockchain'
                       }
                     </p>
                   </div>
@@ -511,12 +505,12 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
                 <div className="text-center py-12">
                   <Sparkles className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {hasFC ? 'No Predictions Yet' : 'No Markets Available'}
+                    {hasFC ? 'No Predictions Generated' : 'No Markets Available'}
                   </h3>
                   <p className="text-gray-600 mb-6">
                     {hasFC 
                       ? "Generate your first set of personalized predictions to get started."
-                      : "No prediction markets are currently available. Check back later!"
+                      : "No prediction markets are currently available on the blockchain."
                     }
                   </p>
                   {hasFC && (
@@ -546,7 +540,7 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
           {/* Recent Bets */}
           <div className="bg-white rounded-xl shadow-sm border">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="font-bold text-gray-900">💰 Your Bets ({bets.length})</h3>
+              <h3 className="font-bold text-gray-900">💰 Your Blockchain Bets ({bets.length})</h3>
             </div>
             <div className="p-6">
               {bets.length === 0 ? (
@@ -560,19 +554,39 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
                   {bets.slice().reverse().map((bet) => (
                     <div key={bet.id} className="border rounded-lg p-3">
                       <div className="flex items-center justify-between mb-2">
-                        <span className={`text-xs font-medium px-2 py-1 rounded ${
-                          bet.outcome === 'yes' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {bet.outcome.toUpperCase()}
-                        </span>
+                        <div className="flex items-center space-x-2">
+                          <span className={`text-xs font-medium px-2 py-1 rounded ${
+                            bet.outcome === 'yes' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {bet.outcome.toUpperCase()}
+                          </span>
+                          {bet.onChain && (
+                            <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                              ⛓️ ON-CHAIN
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs text-gray-500">{bet.amount} ETH</span>
                       </div>
                       <p className="text-sm font-medium line-clamp-2 text-gray-900">
                         {bet.prediction.question}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {bet.timestamp.toLocaleTimeString()}
-                      </p>
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-gray-500">
+                          {bet.timestamp.toLocaleTimeString()}
+                        </p>
+                        {bet.txHash && (
+                          <a
+                            href={`https://sepolia.explorer.zora.energy/tx/${bet.txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline flex items-center space-x-1"
+                          >
+                            <span>View TX</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -580,100 +594,70 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
             </div>
           </div>
 
-          {/* Performance Stats */}
+          {/* Quick Actions */}
           <div className="bg-white rounded-xl shadow-sm border">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="font-bold text-gray-900">📊 Performance</h3>
+              <h3 className="font-bold text-gray-900">⚡ Quick Actions</h3>
             </div>
             <div className="p-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Total Wagered</span>
-                  <span className="font-semibold text-gray-900">
-                    {totalWagered.toFixed(4)} ETH
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Predictions Made</span>
-                  <span className="font-semibold text-gray-900">{bets.length}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Engagement Rate</span>
-                  <span className="font-semibold text-gray-900">
-                    {engagementRate.toFixed(0)}%
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Skipped</span>
-                  <span className="font-semibold text-gray-900">{skippedPredictions.length}</span>
-                </div>
-              </div>
-
-              {bets.length > 0 && (
+              <div className="space-y-3">
+                <button
+                  onClick={() => onNavigate('markets')}
+                  className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-medium text-blue-900">Browse All Markets</div>
+                    <div className="text-sm text-blue-700">View {allMarkets.length} live markets</div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-blue-600" />
+                </button>
+                
+                <button
+                  onClick={() => onNavigate('create')}
+                  className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-medium text-green-900">Create Market</div>
+                    <div className="text-sm text-green-700">Deploy new prediction market</div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-green-600" />
+                </button>
+                
                 <button
                   onClick={() => onNavigate('rewards')}
-                  className="w-full mt-4 bg-green-50 hover:bg-green-100 text-green-700 py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-2"
+                  className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors flex items-center justify-between"
                 >
-                  <span>View All Rewards</span>
-                  <ChevronRight className="w-4 h-4" />
+                  <div>
+                    <div className="font-medium text-purple-900">Collect Rewards</div>
+                    <div className="text-sm text-purple-700">Claim your winnings</div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-purple-600" />
                 </button>
-              )}
+              </div>
             </div>
           </div>
 
-          {/* AI Insights or Market Stats */}
+          {/* Network Info */}
           <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border border-purple-200">
             <div className="p-6">
               <div className="flex items-center space-x-2 mb-3">
-                {hasFC ? (
-                  <>
-                    <Sparkles className="w-5 h-5 text-purple-600" />
-                    <h3 className="font-bold text-gray-900">AI Insights</h3>
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp className="w-5 h-5 text-blue-600" />
-                    <h3 className="font-bold text-gray-900">Market Stats</h3>
-                  </>
-                )}
+                <Target className="w-5 h-5 text-purple-600" />
+                <h3 className="font-bold text-gray-900">Zora Network</h3>
               </div>
               <div className="space-y-3 text-sm">
                 <div className="bg-white bg-opacity-50 rounded-lg p-3">
                   <p className="text-gray-700">
-                    <span className="font-medium">
-                      {hasFC ? 'Prediction Strength:' : 'Market Activity:'}
-                    </span>{' '}
-                    {hasFC ? (
-                      <>Your bets show 
-                      {engagementRate > 70 ? ' high confidence' : engagementRate > 40 ? ' moderate confidence' : ' selective'} 
-                      in market outcomes.</>
-                    ) : (
-                      <>Browse {allMarkets.length} available markets across different categories.</>
-                    )}
+                    <span className="font-medium">Live Markets:</span> All predictions are real smart contracts on Zora blockchain.
                   </p>
                 </div>
-                {hasFC && primaryInterests.length > 0 && (
-                  <div className="bg-white bg-opacity-50 rounded-lg p-3">
-                    <p className="text-gray-700">
-                      <span className="font-medium">Focus Areas:</span> You're most active in{' '}
-                      {primaryInterests.slice(0, 2).join(' and ')} predictions.
-                    </p>
-                  </div>
-                )}
                 <div className="bg-white bg-opacity-50 rounded-lg p-3">
                   <p className="text-gray-700">
-                    <span className="font-medium">Recommendation:</span>
-                    {hasFC ? (
-                      bets.length === 0 
-                        ? ' Start with smaller bets to build your prediction history.'
-                        : bets.length < 5 
-                        ? ' Try betting on more diverse topics to improve accuracy.'
-                        : ' Your prediction pattern shows good diversification.'
-                    ) : (
-                      bets.length === 0
-                        ? ' Start exploring markets that interest you most.'
-                        : ' Consider connecting Farcaster for personalized recommendations.'
-                    )}
+                    <span className="font-medium">Real Money:</span> Place bets with ETH and win real rewards.
+                  </p>
+                </div>
+                <div className="bg-white bg-opacity-50 rounded-lg p-3">
+                  <p className="text-gray-700">
+                    <span className="font-medium">NFT Collectibles:</span> Successful predictions become collectible NFTs.
                   </p>
                 </div>
               </div>

@@ -1,30 +1,29 @@
-// File: src/components/pages/MarketsPage.tsx
-
-import React, { useState, useEffect, useMemo } from 'react';
+// src/components/pages/MarketsPage.tsx
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePrivy } from '@privy-io/react-auth';
 import { useAllMarkets } from '@/hooks/useAllMarkets';
+import { blockchainService } from '@/services/blockchain/service';
+import { MarketDetailModal } from '@/components/markets/MarketDetailModal';
 import { AppPage } from '../../types/Navigation';
 import {
   Search,
   Filter,
   TrendingUp,
-  TrendingDown,
   Clock,
   Users,
   DollarSign,
-  Calendar,
-  Tag,
-  SortAsc,
-  SortDesc,
   Grid,
   List,
   RefreshCw,
-  Star,
   Eye,
   BarChart3,
   Zap,
   ChevronDown,
-  X
+  X,
+  ExternalLink,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 
 interface MarketsPageProps {
@@ -45,10 +44,12 @@ interface MarketFilters {
 }
 
 export function MarketsPage({ onNavigate }: MarketsPageProps) {
+  const { user } = usePrivy();
   const { loading, markets, error, fetchMarkets } = useAllMarkets();
   const [selectedMarket, setSelectedMarket] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [placingBet, setPlacingBet] = useState<{ marketId: number; outcome: boolean } | null>(null);
   const [filters, setFilters] = useState<MarketFilters>({
     search: '',
     category: '',
@@ -59,14 +60,14 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
     viewMode: 'grid'
   });
 
-  // Load markets on mount
+  // Load real blockchain markets on mount
   useEffect(() => {
-    if (markets.length === 0) {
+    if (markets.length === 0 && !loading) {
       fetchMarkets();
     }
   }, []);
 
-  // Filter and sort markets
+  // Filter and sort markets - NO MOCK DATA
   const filteredMarkets = useMemo(() => {
     let filtered = markets.filter(market => {
       // Search filter
@@ -135,7 +136,7 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
         case 'most-liquid':
           return b.totalLiquidity - a.totalLiquidity;
         case 'most-active':
-          return (b.totalLiquidity * 10) - (a.totalLiquidity * 10); // Mock activity score
+          return b.totalLiquidity - a.totalLiquidity; // Use liquidity as proxy for activity
         case 'trending':
           return Math.abs(50 - b.outcomes.yes) - Math.abs(50 - a.outcomes.yes); // Markets closer to 50/50
         default:
@@ -167,15 +168,47 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
     });
   };
 
+  const handleQuickBet = async (market: any, outcome: 'yes' | 'no') => {
+    if (!user?.wallet?.address) {
+      alert('Please connect your wallet to place bets');
+      return;
+    }
+
+    setPlacingBet({ marketId: market.marketId, outcome: outcome === 'yes' });
+    
+    try {
+      const result = await blockchainService.placeBet(
+        user.wallet.address as `0x${string}`,
+        market.marketId,
+        outcome === 'yes',
+        '0.01' // Default bet amount
+      );
+
+      if (result.success) {
+        alert(`Bet placed successfully! Transaction: ${result.txHash?.slice(0, 10)}...`);
+        // Refresh markets to show updated data
+        fetchMarkets();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error('Error placing quick bet:', error);
+      alert(`Failed to place bet: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setPlacingBet(null);
+    }
+  };
+
   const getTimeLeft = (endTime: Date) => {
     const now = Date.now();
     const timeLeft = endTime.getTime() - now;
     const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
     const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     
+    if (timeLeft <= 0) return 'Ended';
     if (days > 0) return `${days}d ${hours}h`;
     if (hours > 0) return `${hours}h`;
-    return 'Ended';
+    return 'Ending soon';
   };
 
   const getCategoryIcon = (category: string) => {
@@ -205,10 +238,10 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              📊 Prediction Markets
+              ⛓️ Blockchain Markets
             </h1>
             <p className="text-gray-600">
-              Discover and trade on {markets.length} prediction markets across all categories
+              Live prediction markets on Zora Network • {markets.length} total markets
             </p>
           </div>
 
@@ -234,6 +267,36 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
             </button>
+
+            <button
+              onClick={() => onNavigate('create')}
+              className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              <Zap className="w-4 h-4" />
+              <span>Create Market</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Blockchain Status */}
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+              <div>
+                <h3 className="font-medium text-gray-900">Live on Zora Sepolia</h3>
+                <p className="text-sm text-gray-600">All markets are real smart contracts • Real ETH • Real predictions</p>
+              </div>
+            </div>
+            <a
+              href="https://sepolia.explorer.zora.energy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-1 text-purple-600 hover:text-purple-700 text-sm font-medium"
+            >
+              <span>View on Explorer</span>
+              <ExternalLink className="w-4 h-4" />
+            </a>
           </div>
         </div>
 
@@ -245,6 +308,7 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
               <span className="text-sm font-medium text-gray-600">Total Markets</span>
             </div>
             <div className="text-2xl font-bold text-gray-900">{markets.length}</div>
+            <div className="text-xs text-gray-500">Live on blockchain</div>
           </div>
 
           <div className="bg-white rounded-lg p-4 border">
@@ -255,6 +319,7 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
             <div className="text-2xl font-bold text-gray-900">
               {markets.filter(m => !m.resolved && m.endTime > new Date()).length}
             </div>
+            <div className="text-xs text-gray-500">Available for betting</div>
           </div>
 
           <div className="bg-white rounded-lg p-4 border">
@@ -263,8 +328,9 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
               <span className="text-sm font-medium text-gray-600">Total Volume</span>
             </div>
             <div className="text-2xl font-bold text-gray-900">
-              {markets.reduce((sum, m) => sum + m.totalLiquidity, 0).toFixed(1)} ETH
+              {markets.reduce((sum, m) => sum + m.totalLiquidity, 0).toFixed(3)} ETH
             </div>
+            <div className="text-xs text-gray-500">Real money locked</div>
           </div>
 
           <div className="bg-white rounded-lg p-4 border">
@@ -275,6 +341,7 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
             <div className="text-2xl font-bold text-gray-900">
               {new Set(markets.map(m => m.category)).size}
             </div>
+            <div className="text-xs text-gray-500">Different topics</div>
           </div>
         </div>
       </div>
@@ -289,7 +356,7 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
             className="bg-white rounded-lg border p-6 mb-6"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Filter Markets</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Filter Blockchain Markets</h3>
               <button
                 onClick={clearFilters}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -346,22 +413,6 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
                 </select>
               </div>
 
-              {/* Time Frame */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Time Frame</label>
-                <select
-                  value={filters.timeframe}
-                  onChange={(e) => handleFilterChange('timeframe', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Any Time</option>
-                  <option value="1d">📅 1 Day</option>
-                  <option value="3d">📅 3 Days</option>
-                  <option value="1w">📅 1 Week</option>
-                  <option value="1m">📅 1 Month</option>
-                </select>
-              </div>
-
               {/* Sort By */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
@@ -387,8 +438,8 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
                 <input
                   type="range"
                   min="0"
-                  max="10"
-                  step="0.1"
+                  max="1"
+                  step="0.01"
                   value={filters.minLiquidity}
                   onChange={(e) => handleFilterChange('minLiquidity', parseFloat(e.target.value))}
                   className="w-full"
@@ -403,7 +454,7 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
           <span className="text-sm text-gray-600">
-            {loading ? 'Loading...' : `${filteredMarkets.length} markets found`}
+            {loading ? 'Loading blockchain data...' : `${filteredMarkets.length} markets found`}
           </span>
           
           {filters.search && (
@@ -464,9 +515,9 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
       ) : error ? (
         <div className="text-center py-12">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <X className="w-8 h-8 text-red-600" />
+            <AlertCircle className="w-8 h-8 text-red-600" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Markets</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Blockchain Data</h3>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={fetchMarkets}
@@ -482,14 +533,28 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No Markets Found</h3>
           <p className="text-gray-600 mb-6">
-            Try adjusting your filters or search terms to find more markets.
+            {markets.length === 0 
+              ? "No prediction markets exist on the blockchain yet."
+              : "Try adjusting your filters to find more markets."
+            }
           </p>
-          <button
-            onClick={clearFilters}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
-          >
-            Clear Filters
-          </button>
+          <div className="flex justify-center space-x-4">
+            {markets.length === 0 ? (
+              <button
+                onClick={() => onNavigate('create')}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors"
+              >
+                Create First Market
+              </button>
+            ) : (
+              <button
+                onClick={clearFilters}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <div className={
@@ -545,16 +610,70 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
                     </div>
                   </div>
 
+                  {/* Quick Bet Buttons */}
+                  {!market.resolved && (
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleQuickBet(market, 'yes');
+                        }}
+                        disabled={placingBet?.marketId === market.marketId}
+                        className="bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-1"
+                      >
+                        {placingBet?.marketId === market.marketId && placingBet.outcome ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <>
+                            <span>Bet YES</span>
+                            <span className="text-xs">(0.01Ξ)</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleQuickBet(market, 'no');
+                        }}
+                        disabled={placingBet?.marketId === market.marketId}
+                        className="bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-1"
+                      >
+                        {placingBet?.marketId === market.marketId && !placingBet.outcome ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <>
+                            <span>Bet NO</span>
+                            <span className="text-xs">(0.01Ξ)</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
                   {/* Footer */}
                   <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                    <div className="flex items-center space-x-1 text-sm text-gray-500">
-                      <DollarSign className="w-4 h-4" />
-                      <span>{market.totalLiquidity.toFixed(2)} ETH</span>
+                    <div className="flex items-center space-x-3 text-sm text-gray-500">
+                      <div className="flex items-center space-x-1">
+                        <DollarSign className="w-3 h-3" />
+                        <span>{market.totalLiquidity.toFixed(3)} ETH</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Users className="w-3 h-3" />
+                        <span>ID: {market.marketId}</span>
+                      </div>
                     </div>
                     <div className="flex items-center space-x-1 text-sm text-blue-600">
                       <Eye className="w-4 h-4" />
-                      <span>View Details</span>
+                      <span>Details</span>
                     </div>
+                  </div>
+
+                  {/* Blockchain Badge */}
+                  <div className="mt-3 flex items-center justify-center">
+                    <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
+                      <span>⛓️</span>
+                      <span>Live on Zora</span>
+                    </span>
                   </div>
                 </div>
               ) : (
@@ -570,6 +689,9 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
                         <Clock className="w-3 h-3" />
                         <span>{getTimeLeft(market.endTime)}</span>
                       </div>
+                      <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2 py-1 rounded-full text-xs font-medium">
+                        ⛓️ ID: {market.marketId}
+                      </span>
                     </div>
                     <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">
                       {market.question}
@@ -589,9 +711,43 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
                       <div className="text-xs text-gray-500">NO</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-sm font-bold text-blue-600">{market.totalLiquidity.toFixed(2)}</div>
+                      <div className="text-sm font-bold text-blue-600">{market.totalLiquidity.toFixed(3)}</div>
                       <div className="text-xs text-gray-500">ETH</div>
                     </div>
+                    
+                    {!market.resolved && (
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleQuickBet(market, 'yes');
+                          }}
+                          disabled={placingBet?.marketId === market.marketId}
+                          className="bg-green-600 hover:bg-green-700 text-white py-1 px-2 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                        >
+                          {placingBet?.marketId === market.marketId && placingBet.outcome ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            'YES'
+                          )}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleQuickBet(market, 'no');
+                          }}
+                          disabled={placingBet?.marketId === market.marketId}
+                          className="bg-red-600 hover:bg-red-700 text-white py-1 px-2 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                        >
+                          {placingBet?.marketId === market.marketId && !placingBet.outcome ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            'NO'
+                          )}
+                        </button>
+                      </div>
+                    )}
+                    
                     <ChevronDown className="w-5 h-5 text-gray-400 transform rotate-[-90deg]" />
                   </div>
                 </div>
@@ -608,302 +764,57 @@ export function MarketsPage({ onNavigate }: MarketsPageProps) {
         onClose={() => setShowDetailModal(false)}
         onNavigate={onNavigate}
       />
-    </div>
-  );
-}
 
-// Market Detail Modal Component (included in same file to avoid circular imports)
-interface MarketDetailModalProps {
-  market: any;
-  isOpen: boolean;
-  onClose: () => void;
-  onNavigate: (page: AppPage) => void;
-}
-
-function MarketDetailModal({ market, isOpen, onClose, onNavigate }: MarketDetailModalProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'rules'>('overview');
-  const [showBettingModal, setShowBettingModal] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
-
-  if (!isOpen || !market) return null;
-
-  const getTimeLeft = (endTime: Date) => {
-    const now = Date.now();
-    const timeLeft = endTime.getTime() - now;
-    const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (timeLeft <= 0) return 'Market Ended';
-    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category.toLowerCase()) {
-      case 'crypto': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'tech': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'sports': return 'bg-green-100 text-green-800 border-green-200';
-      case 'politics': return 'bg-purple-100 text-purple-800 border-purple-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const handleBet = (outcome: 'yes' | 'no', amount: number) => {
-    console.log('Bet placed:', { outcome, amount, market: market.question });
-    alert(`Bet placed: ${outcome.toUpperCase()} for ${amount} ETH on "${market.question}"`);
-  };
-
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: market.question,
-        text: `Check out this prediction market: ${market.question}`,
-        url: window.location.href,
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert('Link copied to clipboard!');
-    }
-  };
-
-  return (
-    <AnimatePresence>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1 mr-4">
-                <div className="flex items-center space-x-3 mb-3">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getCategoryColor(market.category)}`}>
-                    {market.category}
-                  </span>
-                  <div className="flex items-center space-x-1 text-sm text-gray-500">
-                    <Clock className="w-4 h-4" />
-                    <span>{getTimeLeft(market.endTime)}</span>
-                  </div>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 leading-tight">
-                  {market.question}
-                </h2>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setIsFavorited(!isFavorited)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isFavorited ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <Star className={`w-5 h-5 ${isFavorited ? 'fill-current' : ''}`} />
-                </button>
-                <button
-                  onClick={handleShare}
-                  className="p-2 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
-                >
-                  <TrendingUp className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={onClose}
-                  className="p-2 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Key Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-3 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">{market.outcomes.yes}%</div>
-                <div className="text-sm text-green-700">YES</div>
-              </div>
-              <div className="text-center p-3 bg-red-50 rounded-lg">
-                <div className="text-2xl font-bold text-red-600">{market.outcomes.no}%</div>
-                <div className="text-sm text-red-700">NO</div>
-              </div>
-              <div className="text-center p-3 bg-blue-50 rounded-lg">
-                <div className="text-lg font-bold text-blue-600">{market.totalLiquidity.toFixed(2)} ETH</div>
-                <div className="text-sm text-blue-700">Liquidity</div>
-              </div>
-              <div className="text-center p-3 bg-purple-50 rounded-lg">
-                <div className="text-lg font-bold text-purple-600">
-                  {Math.floor(Math.random() * 150 + 50)}
-                </div>
-                <div className="text-sm text-purple-700">Traders</div>
-              </div>
-            </div>
+      {/* Empty State for No Blockchain Data */}
+      {!loading && !error && markets.length === 0 && (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <BarChart3 className="w-8 h-8 text-blue-600" />
           </div>
-
-          {/* Content */}
-          <div className="p-6 max-h-[60vh] overflow-y-auto">
-            <div className="space-y-6">
-              {/* Description */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
-                <p className="text-gray-600 leading-relaxed">{market.description}</p>
-              </div>
-
-              {/* Market Details */}
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Market Information</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Created:</span>
-                      <span className="font-medium">{market.createdAt.toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Ends:</span>
-                      <span className="font-medium">{market.endTime.toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Creator:</span>
-                      <span className="font-medium capitalize">{market.creator}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Status:</span>
-                      <span className={`font-medium ${
-                        market.resolved ? 'text-green-600' : 'text-blue-600'
-                      }`}>
-                        {market.resolved ? 'Resolved' : 'Active'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Tags</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {market.tags.map((tag: string) => (
-                      <span
-                        key={tag}
-                        className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Resolution Criteria */}
-              <div>
-                <h4 className="font-semibold text-gray-900 mb-3">Resolution Criteria</h4>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-700">{market.resolutionCriteria}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer Actions */}
-          <div className="p-6 border-t border-gray-200 bg-gray-50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <button className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors">
-                  <DollarSign className="w-4 h-4" />
-                  <span className="text-sm">Copy Link</span>
-                </button>
-                <button className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors">
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="text-sm">Share</span>
-                </button>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                {!market.resolved && (
-                  <>
-                    <button
-                      onClick={() => setShowBettingModal(true)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      Place Bet
-                    </button>
-                    <button
-                      onClick={() => onNavigate('home')}
-                      className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      More Markets
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Simple Betting Modal */}
-        {showBettingModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-xl p-6 max-w-md w-full"
-              onClick={(e) => e.stopPropagation()}
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Markets on Blockchain Yet</h3>
+          <p className="text-gray-600 mb-6">
+            Be the first to create a prediction market on the Zora blockchain!
+          </p>
+          <div className="flex justify-center space-x-4">
+            <button
+              onClick={() => onNavigate('create')}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold">Place Your Bet</h3>
-                <button
-                  onClick={() => setShowBettingModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2 line-clamp-2">{market.question}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <button
-                  onClick={() => {
-                    handleBet('yes', 0.01);
-                    setShowBettingModal(false);
-                  }}
-                  className="p-4 rounded-lg border-2 border-green-300 hover:border-green-400 hover:bg-green-50 transition-all"
-                >
-                  <div className="text-center">
-                    <div className="text-xl font-bold text-green-600">YES</div>
-                    <div className="text-sm text-green-700">{market.outcomes.yes}% odds</div>
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => {
-                    handleBet('no', 0.01);
-                    setShowBettingModal(false);
-                  }}
-                  className="p-4 rounded-lg border-2 border-red-300 hover:border-red-400 hover:bg-red-50 transition-all"
-                >
-                  <div className="text-center">
-                    <div className="text-xl font-bold text-red-600">NO</div>
-                    <div className="text-sm text-red-700">{market.outcomes.no}% odds</div>
-                  </div>
-                </button>
-              </div>
-
-              <div className="text-center">
-                <button
-                  onClick={() => setShowBettingModal(false)}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
+              <Zap className="w-4 h-4" />
+              <span>Create First Market</span>
+            </button>
+            <button
+              onClick={() => onNavigate('home')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+            >
+              Generate AI Markets
+            </button>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Footer Info */}
+      <div className="mt-12 text-center text-gray-500 text-sm">
+        <p>
+          All markets are live smart contracts on Zora Sepolia testnet. 
+          Real ETH transactions • Real predictions • Real rewards
+        </p>
+        <div className="flex justify-center items-center space-x-4 mt-2">
+          <a
+            href="https://sepolia.explorer.zora.energy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline flex items-center space-x-1"
+          >
+            <span>Block Explorer</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
+          <span>•</span>
+          <span>Network: Zora Sepolia</span>
+          <span>•</span>
+          <span>Chain ID: 999999999</span>
+        </div>
       </div>
-    </AnimatePresence>
+    </div>
   );
 }

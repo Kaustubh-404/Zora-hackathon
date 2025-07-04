@@ -1,12 +1,11 @@
-// File: src/components/pages/CreateMarketPage.tsx
-
+// src/components/pages/CreateMarketPage.tsx
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { usePrivy } from '@privy-io/react-auth';
-import { useUserStore } from '@/store/userStore';
+import { useAllMarkets } from '@/hooks/useAllMarkets';
 import { AppPage } from '../../types/Navigation';
 import {
   Plus,
@@ -21,7 +20,9 @@ import {
   ArrowRight,
   ArrowLeft,
   ExternalLink,
-  Users} from 'lucide-react';
+  Users,
+  Loader2
+} from 'lucide-react';
 
 interface CreateMarketPageProps {
   onNavigate: (page: AppPage) => void;
@@ -35,12 +36,9 @@ const marketSchema = z.object({
   endDate: z.string().min(1, 'Please select an end date'),
   endTime: z.string().min(1, 'Please select an end time'),
   resolutionCriteria: z.string().min(30, 'Resolution criteria must be at least 30 characters').max(500, 'Resolution criteria must be less than 500 characters'),
-  resolutionSource: z.string().min(1, 'Please specify resolution source'),
   initialLiquidity: z.number().min(0.001, 'Minimum liquidity is 0.001 ETH').max(10, 'Maximum liquidity is 10 ETH'),
+  initialOutcome: z.boolean(),
   tags: z.array(z.string()).min(1, 'Please add at least one tag').max(5, 'Maximum 5 tags allowed'),
-  isPublic: z.boolean(),
-  allowEarlyResolution: z.boolean(),
-  disputePeriod: z.number().min(24, 'Minimum dispute period is 24 hours').max(168, 'Maximum dispute period is 168 hours'),
 });
 
 type MarketFormData = z.infer<typeof marketSchema>;
@@ -56,18 +54,6 @@ const CATEGORIES = [
   { id: 'general', label: '📊 General', description: 'Other events and predictions' },
 ];
 
-const RESOLUTION_SOURCES = [
-  'Official Government Data',
-  'Major News Outlets (Reuters, AP, BBC)',
-  'Sports Official Results',
-  'Company Financial Reports',
-  'Academic Publications',
-  'Blockchain/Smart Contract Data',
-  'Weather Services',
-  'Stock Market Data',
-  'Custom Oracle Solution',
-  'Community Consensus',
-];
 
 const SUGGESTED_QUESTIONS = [
   'Will Bitcoin reach $100,000 by the end of 2024?',
@@ -80,10 +66,12 @@ const SUGGESTED_QUESTIONS = [
 
 export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
   const { user } = usePrivy();
-  const { user: userProfile } = useUserStore();
+  const { createMarket } = useAllMarkets();
   const [currentStep, setCurrentStep] = useState<'basics' | 'details' | 'settings' | 'preview' | 'deploy'>('basics');
   const [isDeploying, setIsDeploying] = useState(false);
   const [deploymentStatus, setDeploymentStatus] = useState<'idle' | 'deploying' | 'success' | 'error'>('idle');
+  const [deploymentError, setDeploymentError] = useState<string | null>(null);
+  const [deploymentTxHash, setDeploymentTxHash] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState('');
   const [isDraft, setIsDraft] = useState(false);
 
@@ -105,12 +93,9 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
       endDate: '',
       endTime: '',
       resolutionCriteria: '',
-      resolutionSource: '',
       initialLiquidity: 0.1,
+      initialOutcome: true,
       tags: [],
-      isPublic: true,
-      allowEarlyResolution: false,
-      disputePeriod: 48,
     },
     mode: 'onChange',
   });
@@ -149,7 +134,7 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
     if (currentStep === 'basics') {
       fieldsToValidate = ['question', 'description', 'category'];
     } else if (currentStep === 'details') {
-      fieldsToValidate = ['endDate', 'endTime', 'resolutionCriteria', 'resolutionSource'];
+      fieldsToValidate = ['endDate', 'endTime', 'resolutionCriteria'];
     } else if (currentStep === 'settings') {
       fieldsToValidate = ['initialLiquidity', 'tags'];
     }
@@ -178,33 +163,56 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
   };
 
   const deployMarket = async (data: MarketFormData) => {
+    if (!user?.wallet?.address) {
+      setDeploymentError('Please connect your wallet to create a market');
+      setDeploymentStatus('error');
+      return;
+    }
+
     setIsDeploying(true);
     setDeploymentStatus('deploying');
+    setDeploymentError(null);
     
     try {
-      // Simulate smart contract deployment
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      console.log('🚀 Deploying market to blockchain...');
       
-      console.log('Deploying market with data:', data);
+      // Calculate duration in seconds
+      const endDate = new Date(`${data.endDate}T${data.endTime}`);
+      const duration = Math.floor((endDate.getTime() - Date.now()) / 1000);
       
-      // In real implementation, this would:
-      // 1. Deploy smart contract to Zora network
-      // 2. Set up oracle connections
-      // 3. Initialize market parameters
-      // 4. Create NFT collection for prediction tokens
+      const marketData = {
+        question: data.question,
+        description: data.description,
+        category: data.category,
+        resolutionCriteria: data.resolutionCriteria,
+        duration,
+        initialBetAmount: data.initialLiquidity.toString(),
+        initialOutcome: data.initialOutcome,
+      };
+
+      console.log('📊 Market data:', marketData);
       
-      setDeploymentStatus('success');
+      const result = await createMarket(user.wallet.address, marketData);
       
-      // Clear draft after successful deployment
-      localStorage.removeItem('foresightcast_market_draft');
-      
-      // Navigate to markets page after delay
-      setTimeout(() => {
-        onNavigate('markets');
-      }, 2000);
+      if (result.success) {
+        console.log('✅ Market deployed successfully!', result);
+        setDeploymentTxHash(result.txHash || null);
+        setDeploymentStatus('success');
+        
+        // Clear draft after successful deployment
+        localStorage.removeItem('foresightcast_market_draft');
+        
+        // Navigate to markets page after delay
+        setTimeout(() => {
+          onNavigate('markets');
+        }, 3000);
+      } else {
+        throw new Error(result.error || 'Failed to deploy market');
+      }
       
     } catch (error) {
-      console.error('Market deployment failed:', error);
+      console.error('❌ Market deployment failed:', error);
+      setDeploymentError(error instanceof Error ? error.message : 'Unknown deployment error');
       setDeploymentStatus('error');
     } finally {
       setIsDeploying(false);
@@ -220,7 +228,6 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
   useEffect(() => {
     const savedDraft = localStorage.getItem('foresightcast_market_draft');
     if (savedDraft) {
-      // Ask user if they want to load draft
       const shouldLoad = window.confirm('We found a saved draft. Would you like to continue where you left off?');
       if (shouldLoad) {
         loadDraft();
@@ -244,10 +251,10 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              ✨ Create Prediction Market
+              ⛓️ Create Blockchain Market
             </h1>
             <p className="text-gray-600">
-              Create your own prediction market and let others bet on outcomes you're interested in.
+              Deploy your prediction market as a smart contract on Zora Network
             </p>
           </div>
           
@@ -505,61 +512,6 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
                     </span>
                   </div>
                 </div>
-
-                {/* Resolution Source */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Resolution Source *
-                  </label>
-                  <select
-                    {...register('resolutionSource')}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select resolution source...</option>
-                    {RESOLUTION_SOURCES.map((source) => (
-                      <option key={source} value={source}>
-                        {source}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.resolutionSource && (
-                    <p className="text-red-500 text-sm mt-1">{errors.resolutionSource.message}</p>
-                  )}
-                </div>
-
-                {/* Dispute Period */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Dispute Period (hours) *
-                  </label>
-                  <Controller
-                    name="disputePeriod"
-                    control={control}
-                    render={({ field }) => (
-                      <div>
-                        <input
-                          type="range"
-                          min="24"
-                          max="168"
-                          step="24"
-                          {...field}
-                          className="w-full"
-                        />
-                        <div className="flex justify-between text-sm text-gray-500 mt-1">
-                          <span>24h</span>
-                          <span className="font-medium text-blue-600">{field.value}h</span>
-                          <span>168h (7 days)</span>
-                        </div>
-                      </div>
-                    )}
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Time period after resolution during which the outcome can be disputed.
-                  </p>
-                  {errors.disputePeriod && (
-                    <p className="text-red-500 text-sm mt-1">{errors.disputePeriod.message}</p>
-                  )}
-                </div>
               </div>
             </motion.div>
           )}
@@ -575,7 +527,7 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
             >
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Market Settings</h2>
-                <p className="text-gray-600">Configure liquidity, tags, and market preferences.</p>
+                <p className="text-gray-600">Configure initial liquidity and market metadata.</p>
               </div>
 
               <div className="space-y-6">
@@ -600,8 +552,13 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
                           placeholder="0.1"
                         />
                         <div className="flex justify-between text-sm text-gray-500 mt-2">
-                          <span>This will be your initial bet and market liquidity</span>
+                          <span>This will be your initial bet and provides market liquidity</span>
                           <span>≈ ${(field.value * 2500).toFixed(2)} USD</span>
+                        </div>
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-3">
+                          <p className="text-yellow-800 text-sm">
+                            <strong>Note:</strong> You'll pay {field.value} ETH + 0.001 ETH creation fee = {(field.value + 0.001).toFixed(3)} ETH total
+                          </p>
                         </div>
                       </div>
                     )}
@@ -609,6 +566,50 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
                   {errors.initialLiquidity && (
                     <p className="text-red-500 text-sm mt-1">{errors.initialLiquidity.message}</p>
                   )}
+                </div>
+
+                {/* Initial Outcome Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Your Initial Prediction *
+                  </label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      watchedData.initialOutcome === true
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}>
+                      <input
+                        {...register('initialOutcome')}
+                        type="radio"
+                        value="true"
+                        onChange={() => setValue('initialOutcome', true)}
+                        className="sr-only"
+                      />
+                      <div className="text-center">
+                        <div className="text-xl font-bold mb-1">YES</div>
+                        <div className="text-sm">I predict this will happen</div>
+                      </div>
+                    </label>
+                    
+                    <label className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      watchedData.initialOutcome === false
+                        ? 'border-red-500 bg-red-50 text-red-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}>
+                      <input
+                        {...register('initialOutcome')}
+                        type="radio"
+                        value="false"
+                        onChange={() => setValue('initialOutcome', false)}
+                        className="sr-only"
+                      />
+                      <div className="text-center">
+                        <div className="text-xl font-bold mb-1">NO</div>
+                        <div className="text-sm">I predict this won't happen</div>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
                 {/* Tags */}
@@ -661,54 +662,6 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
                     <p className="text-red-500 text-sm mt-1">{errors.tags.message}</p>
                   )}
                 </div>
-
-                {/* Market Visibility */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Market Visibility
-                  </label>
-                  <div className="space-y-3">
-                    <label className="flex items-start space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        {...register('isPublic')}
-                        type="radio"
-                        value="false"
-                        className="mt-1"
-                      />
-                      <div>
-                        <div className="font-medium text-gray-900 flex items-center space-x-2">
-                          <Users className="w-4 h-4" />
-                          <span>Private Market</span>
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          Only people with the link can access this market
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Additional Settings */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Additional Settings
-                  </label>
-                  <div className="space-y-3">
-                    <label className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <div className="font-medium text-gray-900">Allow Early Resolution</div>
-                        <div className="text-sm text-gray-600">
-                          Market can be resolved before the end date if outcome becomes certain
-                        </div>
-                      </div>
-                      <input
-                        {...register('allowEarlyResolution')}
-                        type="checkbox"
-                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                      />
-                    </label>
-                  </div>
-                </div>
               </div>
             </motion.div>
           )}
@@ -725,7 +678,7 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
               <div className="bg-white rounded-lg border p-8">
                 <div className="mb-6">
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">Preview Your Market</h2>
-                  <p className="text-gray-600">Review all details before deploying to the blockchain.</p>
+                  <p className="text-gray-600">Review all details before deploying to the Zora blockchain.</p>
                 </div>
 
                 {/* Market Preview Card */}
@@ -760,13 +713,21 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
                   </p>
 
                   <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="text-center p-2 bg-green-50 rounded-lg">
-                      <div className="text-lg font-bold text-green-600">50%</div>
-                      <div className="text-xs text-green-700">YES</div>
+                    <div className={`text-center p-2 rounded-lg ${
+                      watchedData.initialOutcome ? 'bg-green-50' : 'bg-gray-50'
+                    }`}>
+                      <div className={`text-lg font-bold ${
+                        watchedData.initialOutcome ? 'text-green-600' : 'text-gray-600'
+                      }`}>50%</div>
+                      <div className="text-xs text-gray-500">YES</div>
                     </div>
-                    <div className="text-center p-2 bg-red-50 rounded-lg">
-                      <div className="text-lg font-bold text-red-600">50%</div>
-                      <div className="text-xs text-red-700">NO</div>
+                    <div className={`text-center p-2 rounded-lg ${
+                      !watchedData.initialOutcome ? 'bg-red-50' : 'bg-gray-50'
+                    }`}>
+                      <div className={`text-lg font-bold ${
+                        !watchedData.initialOutcome ? 'text-red-600' : 'text-gray-600'
+                      }`}>50%</div>
+                      <div className="text-xs text-gray-500">NO</div>
                     </div>
                     <div className="text-center p-2 bg-blue-50 rounded-lg">
                       <div className="text-sm font-bold text-blue-600">
@@ -790,68 +751,41 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
                   )}
                 </div>
 
-                {/* Market Details Summary */}
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">Market Information</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">End Date:</span>
-                        <span className="font-medium">
-                          {watchedData.endDate && watchedData.endTime 
-                            ? new Date(`${watchedData.endDate}T${watchedData.endTime}`).toLocaleDateString()
-                            : 'Not set'
-                          }
-                        </span>
+                {/* Deployment Cost Estimate */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <DollarSign className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-blue-900">Deployment Cost Breakdown</h4>
+                      <div className="text-blue-800 text-sm mt-1 space-y-1">
+                        <div className="flex justify-between">
+                          <span>Initial Bet ({watchedData.initialOutcome ? 'YES' : 'NO'}):</span>
+                          <span>{watchedData.initialLiquidity || 0} ETH</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Market Creation Fee:</span>
+                          <span>0.001 ETH</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Estimated Gas Fees:</span>
+                          <span>~0.002 ETH</span>
+                        </div>
+                        <div className="flex justify-between font-medium border-t border-blue-300 pt-1">
+                          <span>Total Cost:</span>
+                          <span>~{((watchedData.initialLiquidity || 0) + 0.003).toFixed(4)} ETH</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Resolution Source:</span>
-                        <span className="font-medium">{watchedData.resolutionSource || 'Not set'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Dispute Period:</span>
-                        <span className="font-medium">{watchedData.disputePeriod}h</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Visibility:</span>
-                        <span className="font-medium">
-                          {watchedData.isPublic ? 'Public' : 'Private'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">Resolution Criteria</h4>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-gray-700 text-sm">
-                        {watchedData.resolutionCriteria || 'Resolution criteria not set...'}
-                      </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Deployment Cost Estimate */}
-                <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start space-x-3">
-                    <DollarSign className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-blue-900">Deployment Cost Estimate</h4>
-                      <div className="text-blue-800 text-sm mt-1 space-y-1">
-                        <div className="flex justify-between">
-                          <span>Smart Contract Deployment:</span>
-                          <span>~0.002 ETH</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Initial Liquidity:</span>
-                          <span>{watchedData.initialLiquidity || 0} ETH</span>
-                        </div>
-                        <div className="flex justify-between font-medium border-t border-blue-300 pt-1">
-                          <span>Total Cost:</span>
-                          <span>~{((watchedData.initialLiquidity || 0) + 0.002).toFixed(4)} ETH</span>
-                        </div>
-                      </div>
-                    </div>
+                {/* Resolution Criteria Summary */}
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-3">Resolution Criteria</h4>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-gray-700 text-sm">
+                      {watchedData.resolutionCriteria || 'Resolution criteria not set...'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -869,9 +803,9 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
               {deploymentStatus === 'deploying' && (
                 <div>
                   <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Deploying Your Market</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Deploying to Blockchain</h2>
                   <p className="text-gray-600 mb-6">
                     Your prediction market is being deployed to the Zora blockchain...
                   </p>
@@ -881,12 +815,12 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
                       <span>Validating market parameters</span>
                     </div>
                     <div className="flex items-center justify-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                       <span>Deploying smart contract</span>
                     </div>
                     <div className="flex items-center justify-center space-x-2 text-gray-400">
                       <div className="w-4 h-4 border-2 border-gray-300 rounded-full"></div>
-                      <span>Initializing market</span>
+                      <span>Confirming transaction</span>
                     </div>
                   </div>
                 </div>
@@ -897,16 +831,25 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                     <CheckCircle className="w-8 h-8 text-green-600" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Market Created Successfully! 🎉</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Market Deployed Successfully! 🎉</h2>
                   <p className="text-gray-600 mb-6">
                     Your prediction market has been deployed to the Zora blockchain and is now live.
                   </p>
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                    <div className="flex items-center justify-center space-x-2 text-green-800">
-                      <ExternalLink className="w-4 h-4" />
-                      <span className="font-medium">Contract: 0x1234...5678</span>
+                  {deploymentTxHash && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                      <div className="flex items-center justify-center space-x-2 text-green-800">
+                        <ExternalLink className="w-4 h-4" />
+                        <a
+                          href={`https://sepolia.explorer.zora.energy/tx/${deploymentTxHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium hover:underline"
+                        >
+                          View Transaction: {deploymentTxHash.slice(0, 10)}...
+                        </a>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <p className="text-gray-500 text-sm">
                     Redirecting to markets page...
                   </p>
@@ -919,9 +862,14 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
                     <AlertCircle className="w-8 h-8 text-red-600" />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">Deployment Failed</h2>
-                  <p className="text-gray-600 mb-6">
-                    There was an error deploying your market. Please try again.
+                  <p className="text-gray-600 mb-4">
+                    There was an error deploying your market to the blockchain.
                   </p>
+                  {deploymentError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                      <p className="text-red-700 text-sm">{deploymentError}</p>
+                    </div>
+                  )}
                   <div className="flex justify-center space-x-4">
                     <button
                       onClick={() => setCurrentStep('preview')}
@@ -931,7 +879,8 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
                     </button>
                     <button
                       onClick={() => deployMarket(watchedData as MarketFormData)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                      disabled={isDeploying}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
                     >
                       Try Again
                     </button>
@@ -985,7 +934,7 @@ export function CreateMarketPage({ onNavigate }: CreateMarketPageProps) {
                   className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-8 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
-                  <span>Deploy Market</span>
+                  <span>Deploy to Blockchain</span>
                 </button>
               )}
             </div>
