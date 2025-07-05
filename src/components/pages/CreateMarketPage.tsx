@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAllMarkets } from '@/hooks/useAllMarkets';
-import { AppPage } from '../../types/Navigation';
+import { AppPage } from '../../types/navigation';
 import {
   Plus,
   DollarSign,

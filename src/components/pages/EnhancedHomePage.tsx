@@ -8,7 +8,7 @@ import { useAllMarkets } from '@/hooks/useAllMarkets';
 import { SwipeInterface } from '@/components/swipe/SwipeInterface';
 import { blockchainService } from '@/services/blockchain/service';
 import { getUserAvatar, getUserDisplayName, hasLinkedFarcaster } from '@/utils/userHelpers';
-import { AppPage } from '../../types/Navigation';
+import { AppPage } from '../../types/navigation';
 import { 
   Sparkles, 
   TrendingUp, 

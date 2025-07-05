@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrivy } from '@privy-io/react-auth';
 import { getUserAvatar, getUserDisplayName } from '@/utils/userHelpers';
-import { AppPage } from '../../types/Navigation'; // ✅ Import shared type
+import { AppPage } from '../../types/navigation'; // ✅ Import shared type
 import { 
   Home, 
   TrendingUp, 

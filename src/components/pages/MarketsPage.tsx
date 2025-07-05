@@ -5,7 +5,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useAllMarkets } from '@/hooks/useAllMarkets';
 import { blockchainService } from '@/services/blockchain/service';
 import { MarketDetailModal } from '@/components/markets/MarketDetailModal';
-import { AppPage } from '../../types/Navigation';
+import { AppPage } from '../../types/navigation';
 import {
   Search,
   Filter,
