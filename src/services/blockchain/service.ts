@@ -36,6 +36,7 @@ export interface OnChainMarket {
 }
 
 class BlockchainService {
+  
   private publicClient;
   private automatedWalletClient;
   private automatedAccount;
@@ -715,6 +716,10 @@ class BlockchainService {
       console.error('❌ Simple contract call failed:', error);
       return false;
     }
+  }
+
+  get client() {
+    return this.publicClient;
   }
 }
 

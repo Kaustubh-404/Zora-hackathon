@@ -1,10 +1,11 @@
-// // File: src/components/layout/AppLayout.tsx
+// File: src/components/layout/AppLayout.tsx
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrivy } from '@privy-io/react-auth';
 import { getUserAvatar, getUserDisplayName } from '@/utils/userHelpers';
-import { AppPage } from '../../types/navigation'; // ✅ Import shared type
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { AppPage } from '../../types/navigation';
 import { 
   Home, 
   TrendingUp, 
@@ -14,14 +15,13 @@ import {
   Menu, 
   X,
   LogOut,
-  Settings,
-  Bell
+  Settings
 } from 'lucide-react';
 
 interface AppLayoutProps {
   children: React.ReactNode;
-  currentPage: AppPage; // ✅ Use imported AppPage type
-  onNavigate: (page: AppPage) => void; // ✅ Use imported AppPage type
+  currentPage: AppPage;
+  onNavigate: (page: AppPage) => void;
   userProfile?: any;
 }
 
@@ -92,11 +92,8 @@ export function AppLayout({ children, currentPage, onNavigate, userProfile }: Ap
 
             {/* User Menu */}
             <div className="flex items-center space-x-4">
-              {/* Notifications */}
-              <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
+              {/* ✅ NEW: Notification Center Component */}
+              <NotificationCenter />
 
               {/* User Profile Dropdown */}
               <div className="relative">
@@ -135,6 +132,16 @@ export function AppLayout({ children, currentPage, onNavigate, userProfile }: Ap
                       >
                         <User className="w-4 h-4" />
                         <span>Profile</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          onNavigate('rewards');
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                      >
+                        <Trophy className="w-4 h-4" />
+                        <span>Rewards & NFTs</span>
                       </button>
                       <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2">
                         <Settings className="w-4 h-4" />
@@ -200,6 +207,16 @@ export function AppLayout({ children, currentPage, onNavigate, userProfile }: Ap
                   </button>
                 );
               })}
+              
+              {/* ✅ NEW: Mobile Notifications Section */}
+              <div className="pt-4 border-t border-gray-200">
+                <div className="px-4 py-2">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Notifications</h4>
+                  <div className="text-xs text-gray-500">
+                    Check the bell icon in the header for real-time updates
+                  </div>
+                </div>
+              </div>
             </nav>
           </motion.div>
         )}
@@ -237,6 +254,10 @@ export function AppLayout({ children, currentPage, onNavigate, userProfile }: Ap
               >
                 <Icon className="w-5 h-5" />
                 <span className="text-xs font-medium">{item.label}</span>
+                {/* ✅ NEW: Show notification badge on mobile rewards */}
+                {item.id === 'rewards' && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                )}
               </button>
             );
           })}
