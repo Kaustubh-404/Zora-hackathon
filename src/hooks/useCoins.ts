@@ -8,7 +8,6 @@ import { coinRewardsService } from '@/services/coins/coinRewards';
 import { 
   CoinBalance, 
   CoinEarning, 
-  CoinType, 
  
 } from '@/constants/coins';
 import { Address } from 'viem';
@@ -28,7 +27,7 @@ export function useCoins() {
     setError(null);
 
     try {
-      const [userBalances, userEarnings, userAchievements] = await Promise.all([
+      const [userBalances, userEarnings] = await Promise.all([
         coinsService.getUserCoinBalances(user.wallet.address as Address),
         coinRewardsService.getUserEarnings(user.wallet.address as Address),
         coinRewardsService.getUserAchievements(user.wallet.address as Address),

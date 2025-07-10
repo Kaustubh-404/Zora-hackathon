@@ -20,7 +20,7 @@ import {
   ArrowRight,
   ArrowLeft,
   ExternalLink,
-  Users,
+
   Loader2
 } from 'lucide-react';
 

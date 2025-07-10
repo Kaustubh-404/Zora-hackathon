@@ -1,8 +1,7 @@
 // src/components/coins/CoinMinting.tsx
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { usePrivy } from '@privy-io/react-auth';
-import { coinRewardsService } from '@/services/coins/coinRewards';
 import { 
   CoinType, 
   CoinReward, 

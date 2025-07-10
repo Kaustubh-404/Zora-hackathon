@@ -1,13 +1,11 @@
 // src/components/coins/CoinTrading.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { usePrivy } from '@privy-io/react-auth';
 import { coinsService } from '@/services/coins/coinsService';
 import { CoinBalance, CoinType, getCoinMetadata, formatCoinAmount } from '@/constants/coins';
 import { 
   ArrowUpDown, 
-  TrendingUp, 
-  TrendingDown, 
   RefreshCw,
   AlertCircle,
   CheckCircle,
@@ -165,10 +163,6 @@ export function CoinTrading({ className = '' }: CoinTradingProps) {
     return balance ? parseFloat(formatCoinAmount(balance.balance)) : 0;
   };
 
-  const getCoinName = (coinType: CoinType | 'ETH') => {
-    if (coinType === 'ETH') return 'Ethereum';
-    return getCoinMetadata(coinType).name;
-  };
 
   const getCoinSymbol = (coinType: CoinType | 'ETH') => {
     if (coinType === 'ETH') return 'ETH';

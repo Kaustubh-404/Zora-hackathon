@@ -1,4 +1,3 @@
-import { API_CONFIG } from '@/constants/config';
 
 class RealFarcasterService {
   private baseUrl = 'http://localhost:3001/api/farcaster';

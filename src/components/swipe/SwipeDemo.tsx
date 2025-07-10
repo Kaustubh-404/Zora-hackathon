@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import  { useState } from 'react';
 import { SwipeInterface } from './SwipeInterface';
 import { useAIPredictions } from '@/hooks/useAIPredictions';
 

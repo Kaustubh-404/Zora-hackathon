@@ -1,7 +1,7 @@
 // File: src/components/demo/ManualFarcasterDemo.tsx
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+
 import { useAIPredictions } from '@/hooks/useAIPredictions';
 import { SwipeInterface } from '@/components/swipe/SwipeInterface';
 import { Hash, ExternalLink, Zap, User, TrendingUp } from 'lucide-react';

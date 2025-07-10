@@ -27,7 +27,7 @@ interface EnhancedRewardsPageProps {
   onNavigate: (page: AppPage) => void;
 }
 
-export function EnhancedRewardsPage({ onNavigate }: EnhancedRewardsPageProps) {
+export function EnhancedRewardsPage({ }: EnhancedRewardsPageProps) {
   const { user } = usePrivy();
   const [activeTab, setActiveTab] = useState<'coins' | 'trading' | 'staking' | 'leaderboard' | 'analytics' | 'nfts' | 'achievements' | 'admin'>('coins');
   

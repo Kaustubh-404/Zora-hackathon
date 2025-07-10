@@ -1,5 +1,5 @@
 import { blockchainService } from '@/services/blockchain/service';
-import { usePrivy } from '@privy-io/react-auth';
+
 
 export interface UserStats {
   totalBets: number;
@@ -113,7 +113,7 @@ class UserAnalyticsService {
     }
   }
   
-  private async getUserBettingHistory(userAddress: string): Promise<any[]> {
+  private async getUserBettingHistory(_userAddress: string): Promise<any[]> {
     // In a real implementation, this would query blockchain events
     // For now, we'll simulate with some data
     const allMarkets = await blockchainService.getAllMarkets();

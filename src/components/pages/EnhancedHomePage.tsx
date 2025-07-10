@@ -61,10 +61,10 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
   const [skippedPredictions, setSkippedPredictions] = useState<any[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
-  const [filterCategory, setFilterCategory] = useState<string>("")
-  const [filterTimeframe, setFilterTimeframe] = useState<string>("")
+  const [] = useState<string>("")
+  const [] = useState<string>("")
   const [showCoinWallet, setShowCoinWallet] = useState(false)
-  const [showMintingModal, setShowMintingModal] = useState(false)
+  const [, setShowMintingModal] = useState(false)
   const [currentMintingResult, setCurrentMintingResult] = useState<any>(null)
 
   // Manual Farcaster FID input state
@@ -262,7 +262,6 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
 
   const primaryInterests = getPrimaryInterests()
   const totalPredictionsSeen = bets.length + skippedPredictions.length
-  const engagementRate = totalPredictionsSeen > 0 ? (bets.length / totalPredictionsSeen) * 100 : 0
   const totalWagered = bets.reduce((sum, bet) => sum + bet.amount, 0)
 
   return (

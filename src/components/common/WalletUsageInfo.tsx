@@ -1,5 +1,5 @@
 // src/components/common/WalletUsageInfo.tsx
-import React from 'react';
+
 import { usePrivy } from '@privy-io/react-auth';
 import { useAIPredictions } from '@/hooks/useAIPredictions';
 import { Wallet, Bot, User, Info } from 'lucide-react';
@@ -11,9 +11,8 @@ interface WalletUsageInfoProps {
 
 export function WalletUsageInfo({ showDetails = false, className = '' }: WalletUsageInfoProps) {
   const { user } = usePrivy();
-  const { getWalletUsageInfo } = useAIPredictions();
+  useAIPredictions();
   
-  const walletInfo = getWalletUsageInfo();
 
   if (!showDetails) {
     return (

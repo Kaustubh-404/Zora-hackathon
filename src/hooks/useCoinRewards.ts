@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { coinRewardsService, PredictionResult } from '@/services/coins/coinRewards';
-import { CoinReward, CoinEarning,  } from '@/constants/coins';
+import { CoinEarning,  } from '@/constants/coins';
 import { Address } from 'viem';
 
 export function useCoinRewards() {

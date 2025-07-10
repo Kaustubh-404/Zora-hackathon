@@ -127,26 +127,6 @@ export function AchievementSystem() {
     setAchievements(MOCK_ACHIEVEMENTS)
   }
 
-  const unlockAchievement = (achievementId: string) => {
-    setAchievements((prev) =>
-      prev.map((achievement) => {
-        if (achievement.id === achievementId && !achievement.unlocked) {
-          const unlockedAchievement = {
-            ...achievement,
-            unlocked: true,
-            unlockedAt: new Date(),
-            progress: achievement.total,
-          }
-
-          // Show unlock animation
-          setShowUnlockedModal(unlockedAchievement)
-
-          return unlockedAchievement
-        }
-        return achievement
-      }),
-    )
-  }
 
   const getRarityColor = (rarity: string) => {
     switch (rarity) {

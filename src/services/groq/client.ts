@@ -11,7 +11,7 @@ class GroqService {
     });
   }
 
-  async generatePredictionTopics(userInterests: any, count = 3) {
+  async generatePredictionTopics(userInterests: any, _count = 3) {
     try {
       const prompt = this.buildPersonalizationPrompt(userInterests);
       

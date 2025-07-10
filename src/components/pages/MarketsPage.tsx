@@ -1,6 +1,6 @@
   // src/components/pages/MarketsPage.tsx
   import { useState, useEffect, useMemo } from 'react';
-  import { motion, AnimatePresence } from 'framer-motion';
+  import { motion } from 'framer-motion';
   import { usePrivy } from '@privy-io/react-auth';
   import { useAllMarkets } from '@/hooks/useAllMarkets';
   import { blockchainService } from '@/services/blockchain/service';

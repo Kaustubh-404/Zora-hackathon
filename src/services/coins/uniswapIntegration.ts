@@ -1,9 +1,8 @@
 
 // src/services/coins/uniswapIntegration.ts
-import { createPublicClient, createWalletClient, http, parseEther, formatEther, Address } from 'viem';
+import { createPublicClient, http, parseEther, formatEther, Address } from 'viem';
 import { base } from 'viem/chains';
-import { CoinType, getCoinMetadata } from '@/constants/coins';
-import { API_CONFIG } from '@/constants/config';
+import { CoinType } from '@/constants/coins';
 
 // Uniswap V4 Types (simplified for demo)
 interface PoolKey {
@@ -26,14 +25,6 @@ interface SwapParams extends QuoteParams {
   deadline: bigint;
 }
 
-interface PoolInfo {
-  poolKey: PoolKey;
-  sqrtPriceX96: bigint;
-  tick: number;
-  liquidity: bigint;
-  feeGrowthGlobal0X128: bigint;
-  feeGrowthGlobal1X128: bigint;
-}
 
 class UniswapV4Integration {
   private publicClient;
@@ -69,7 +60,7 @@ class UniswapV4Integration {
   async createCoinPool(
     coinAddress: Address,
     initialEthLiquidity: string,
-    walletClient: any
+    _walletClient: any
   ): Promise<{ success: boolean; poolKey?: PoolKey; error?: string }> {
     try {
       console.log(`🏊 Creating Uniswap V4 pool for coin: ${coinAddress}`);
@@ -168,7 +159,7 @@ class UniswapV4Integration {
     fromCoin: CoinType | 'ETH',
     toCoin: CoinType | 'ETH',
     amountIn: string,
-    minAmountOut: string,
+    _minAmountOut: string,
     recipient: Address,
     walletClient: any
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
@@ -213,7 +204,7 @@ class UniswapV4Integration {
     coinType: CoinType,
     ethAmount: string,
     coinAmount: string,
-    recipient: Address,
+    _recipient: Address,
     walletClient: any
   ): Promise<{ success: boolean; txHash?: string; liquidityTokens?: string; error?: string }> {
     try {
@@ -248,7 +239,7 @@ class UniswapV4Integration {
   async removeLiquidity(
     coinType: CoinType,
     liquidityTokens: string,
-    recipient: Address,
+    _recipient: Address,
     walletClient: any
   ): Promise<{ 
     success: boolean; 
@@ -371,7 +362,7 @@ class UniswapV4Integration {
     return fromCoin === 'ETH' || (fromCoin < toCoin);
   }
 
-  private calculatePriceImpact(amountIn: bigint, amountOut: bigint): number {
+  private calculatePriceImpact(amountIn: bigint, _amountOut: bigint): number {
     // Simplified price impact calculation
     // In real implementation, compare with spot price
     const impact = Number(amountIn) * 0.001 / 1e18; // 0.1% base impact
@@ -380,7 +371,7 @@ class UniswapV4Integration {
 
   // Simulation methods (replace with real Uniswap V4 calls)
 
-  private async simulatePoolCreation(poolKey: PoolKey, initialLiquidity: string): Promise<void> {
+  private async simulatePoolCreation(_poolKey: PoolKey, initialLiquidity: string): Promise<void> {
     console.log('🔄 Simulating pool creation...');
     await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate transaction time
     console.log(`✅ Pool created with ${initialLiquidity} ETH initial liquidity`);
@@ -397,7 +388,7 @@ class UniswapV4Integration {
     return { amountOut: parseEther(outputAmount.toString()) };
   }
 
-  private async simulateSwap(params: SwapParams, walletClient: any): Promise<string> {
+  private async simulateSwap(_params: SwapParams, _walletClient: any): Promise<string> {
     console.log('🔄 Simulating swap execution...');
     await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate transaction time
     
@@ -406,10 +397,10 @@ class UniswapV4Integration {
   }
 
   private async simulateAddLiquidity(
-    poolKey: PoolKey, 
-    ethAmount: string, 
-    coinAmount: string, 
-    walletClient: any
+    _poolKey: PoolKey, 
+    _ethAmount: string, 
+    _coinAmount: string, 
+    _walletClient: any
   ): Promise<string> {
     console.log('🔄 Simulating add liquidity...');
     await new Promise(resolve => setTimeout(resolve, 3000));
@@ -418,9 +409,9 @@ class UniswapV4Integration {
   }
 
   private async simulateRemoveLiquidity(
-    poolKey: PoolKey, 
+    _poolKey: PoolKey, 
     liquidityTokens: string, 
-    walletClient: any
+    _walletClient: any
   ): Promise<{ txHash: string; ethAmount: string; coinAmount: string }> {
     console.log('🔄 Simulating remove liquidity...');
     await new Promise(resolve => setTimeout(resolve, 3000));
@@ -433,7 +424,7 @@ class UniswapV4Integration {
     };
   }
 
-  private async simulatePoolInfo(poolKey: PoolKey): Promise<{
+  private async simulatePoolInfo(_poolKey: PoolKey): Promise<{
     totalLiquidity: string;
     volume24h: string;
     fees24h: string;
@@ -470,7 +461,7 @@ class UniswapV4Integration {
 
   async getGasEstimate(
     operation: 'swap' | 'addLiquidity' | 'removeLiquidity',
-    params: any
+    _params: any
   ): Promise<bigint> {
     // Return gas estimates for different operations
     const gasEstimates = {

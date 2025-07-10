@@ -141,6 +141,7 @@ function AppContent() {
         email: false,
         push: true,
         predictions: true,
+        coinRewards: false
       },
     });
     setAppState('app');

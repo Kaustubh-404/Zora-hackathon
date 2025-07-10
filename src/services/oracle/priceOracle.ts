@@ -102,7 +102,7 @@ class PriceOracleService {
     return { canResolve: false };
   }
 
-  async resolveMarketAutomatically(marketId: number, question: string): Promise<{
+  async resolveMarketAutomatically(_marketId: number, question: string): Promise<{
     canResolve: boolean;
     outcome?: boolean;
     confidence?: number;

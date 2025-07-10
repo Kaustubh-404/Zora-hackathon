@@ -9,7 +9,6 @@ import {
   AUTOMATED_WALLET,
   PREDICTION_MARKET_FACTORY_ABI,
   PREDICTION_MARKET_ABI,
-  PREDICTION_NFT_ABI 
 } from '@/constants/contracts';
 
 export interface OnChainMarket {
@@ -74,7 +73,7 @@ class BlockchainService {
 
   // ===== MANUAL MARKET CREATION (USER PAYS VIA WAGMI) - WORKING ✅ =====
   async createMarketManually(
-    userAccount: Address,
+    _userAccount: Address,
     marketData: {
       question: string;
       description: string;

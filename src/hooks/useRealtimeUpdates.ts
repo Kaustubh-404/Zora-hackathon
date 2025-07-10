@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { blockchainService } from '@/services/blockchain/service';
+
 
 interface MarketUpdate {
   marketId: number;
@@ -36,7 +36,6 @@ export function useRealtimeUpdates() {
     // Check for recent blockchain events
     // This is a simplified version - in production, use event logs
     
-    const recentMarkets = await blockchainService.getAllMarkets();
     
     // Process any new events
     // This would typically come from blockchain event listeners

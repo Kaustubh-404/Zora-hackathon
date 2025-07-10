@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import  { useState } from 'react';
 import { farcasterService } from '@/services/farcaster/client';
 import { interestExtractor } from '@/services/farcaster/interests';
 

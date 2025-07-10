@@ -1,4 +1,4 @@
-import { blockchainService } from '@/services/blockchain/service';
+
 import { CONTRACT_ADDRESSES, PREDICTION_NFT_ABI } from '@/constants/contracts';
 import { writeContract, waitForTransactionReceipt } from '@wagmi/core';
 import { wagmiConfig } from '@/lib/wagmi';
@@ -115,15 +115,9 @@ class ZoraNFTService {
     return `ipfs://QmDemo${hash}`;
   }
   
-  async getUserNFTs(userAddress: string): Promise<any[]> {
+  async getUserNFTs(_userAddress: string): Promise<any[]> {
     try {
       // Get user's NFT balance
-      const balance = await blockchainService.client.readContract({ 
-        address: CONTRACT_ADDRESSES.PREDICTION_NFT,
-        abi: PREDICTION_NFT_ABI,
-        functionName: 'balanceOf',
-        args: [userAddress as `0x${string}`],
-      });
       
       const nfts: any[] = [];
       // In a real implementation, you'd iterate through owned tokens

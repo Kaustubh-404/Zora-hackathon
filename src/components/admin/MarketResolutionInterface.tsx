@@ -34,8 +34,8 @@ export function MarketResolutionInterface() {
   const [pendingMarkets, setPendingMarkets] = useState<PendingMarket[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolvingMarket, setResolvingMarket] = useState<number | null>(null);
-  const [selectedOutcome, setSelectedOutcome] = useState<boolean | null>(null);
-  const [resolutionNotes, setResolutionNotes] = useState('');
+  const [, setSelectedOutcome] = useState<boolean | null>(null);
+  const [, setResolutionNotes] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 

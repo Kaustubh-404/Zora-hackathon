@@ -3,12 +3,9 @@ import { Address } from 'viem';
 import { coinsService } from './coinsService';
 import { 
   CoinType, 
-  CoinReward, 
   CoinEarning,
   calculateCoinRewards,
-  COIN_TYPES,
-  COIN_REWARDS 
-} from '@/constants/coins';
+  COIN_TYPES} from '@/constants/coins';
 
 export interface PredictionResult {
   marketId: number;
@@ -118,7 +115,6 @@ private initializeMockData() {
 
       // Distribute rewards
       const earnings: CoinEarning[] = [];
-      const newAchievements: Achievement[] = [];
 
       for (const reward of rewards) {
         try {

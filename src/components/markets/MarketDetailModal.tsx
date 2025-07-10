@@ -1,19 +1,13 @@
 // File: src/components/markets/MarketDetailModal.tsx
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppPage } from '../../types/navigation';
 import {
   X,
-  Calendar,
-  DollarSign,
-  Users,
   Clock,
-  TrendingUp,
-  TrendingDown,
   Star,
   Share2,
-  ExternalLink,
   AlertCircle,
   CheckCircle,
   BarChart3,

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { motion } from 'framer-motion';
 import { usePrivy } from '@privy-io/react-auth';
 import { ArrowRight, Users, Zap, Trophy, Sparkles } from 'lucide-react';

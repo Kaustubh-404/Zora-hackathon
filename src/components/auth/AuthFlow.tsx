@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import _React, { useState, useEffect } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, Users, CheckCircle, ArrowRight } from 'lucide-react';
@@ -8,7 +8,7 @@ interface AuthFlowProps {
   onSkip?: () => void;
 }
 
-export function AuthFlow({ onComplete, onSkip }: AuthFlowProps) {
+export function AuthFlow({ onComplete,  }: AuthFlowProps) {
   const { 
     login, 
     authenticated, 

@@ -292,7 +292,7 @@ export function AnalyticsDashboard() {
                       <YAxis />
                       <Tooltip
                         labelFormatter={(date: string | number | Date) => new Date(date).toLocaleDateString()}
-                        formatter={(value: any, name: any) => [`${value} ETH`, "Profit/Loss"]}
+                        formatter={(value: any, _name: any) => [`${value} ETH`, "Profit/Loss"]}
                       />
                       <Line
                         type="monotone"
@@ -399,7 +399,7 @@ export function AnalyticsDashboard() {
                           paddingAngle={5}
                           dataKey="volume"
                         >
-                          {marketInsights.mostPopularCategories.map((entry, index) => (
+                          {marketInsights.mostPopularCategories.map((_entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>

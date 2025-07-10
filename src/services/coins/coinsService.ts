@@ -10,9 +10,9 @@ import {
   TradeParameters,
   InitialPurchaseCurrency
 } from '@zoralabs/coins-sdk';
-import { createPublicClient, createWalletClient, http, parseEther, formatEther, Address } from 'viem';
+import { createPublicClient, parseEther, formatEther, Address, http } from 'viem';
 import { baseSepolia } from 'viem/chains';
-import { COIN_TYPES, COIN_METADATA, CoinType, CoinBalance, CoinEarning } from '@/constants/coins';
+import { COIN_TYPES, COIN_METADATA, CoinType, CoinBalance } from '@/constants/coins';
 import { API_CONFIG } from '@/constants/config';
 
 interface CoinCreationResult {

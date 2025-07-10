@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+
 import { usePrivy } from '@privy-io/react-auth';
 import { NFTGallery } from '@/components/nft/NFTGallery';
 import { AchievementSystem } from '@/components/achievements/AchievementSystem';
@@ -12,7 +12,7 @@ import {
   TrendingUp, 
   Star,
   ExternalLink,
-  Download
+
 } from 'lucide-react';
 
 interface RewardsPageProps {
