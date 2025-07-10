@@ -1,6 +1,6 @@
 
 class RealFarcasterService {
-  private baseUrl = 'http://localhost:3001/api/farcaster';
+  private baseUrl = 'https://zora-hackathon-backend.onrender.com/api/farcaster';
   private cache = new Map();
 
   async getUserByFid(fid: number) {
