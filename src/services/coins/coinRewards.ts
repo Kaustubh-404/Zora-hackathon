@@ -41,6 +41,55 @@ class CoinRewardsService {
   private userAchievements = new Map<Address, Achievement[]>();
   private userEarnings = new Map<Address, CoinEarning[]>();
 
+  // In the constructor or initialization, add more substantial mock data
+private initializeMockData() {
+  // Add mock data for demo user
+  const mockUserAddress = '0x44e37A9a53EB19F26a2e73aF559C13048Aa4FaE9' as Address;
+  
+  // Mock earnings with more variety
+  const mockEarnings: CoinEarning[] = [
+    {
+      id: 'earning_1',
+      coinType: COIN_TYPES.ACCURACY,
+      amount: BigInt(50),
+      reason: 'Correct prediction on Bitcoin market',
+      marketId: 0,
+      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      transactionHash: '0x1234...',
+    },
+    {
+      id: 'earning_2',
+      coinType: COIN_TYPES.STREAK,
+      amount: BigInt(150),
+      reason: '3 correct predictions in a row',
+      marketId: 1,
+      timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      transactionHash: '0x5678...',
+    },
+    {
+      id: 'earning_3',
+      coinType: COIN_TYPES.CRYPTO_MASTER,
+      amount: BigInt(75),
+      reason: 'Crypto category expertise',
+      marketId: 0,
+      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      transactionHash: '0x9abc...',
+    },
+    {
+      id: 'earning_4',
+      coinType: COIN_TYPES.ORACLE,
+      amount: BigInt(25),
+      reason: 'First correct prediction',
+      marketId: 2,
+      timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000),
+      transactionHash: '0xdef0...',
+    },
+  ];
+  
+  this.userEarnings.set(mockUserAddress, mockEarnings);
+  this.userStreaks.set(mockUserAddress, 3);
+}
+
   // Process prediction result and distribute coin rewards
   async processPredictionResult(
     result: PredictionResult,
@@ -400,6 +449,10 @@ class CoinRewardsService {
     this.userAchievements.delete(userAddress);
     this.userStreaks.delete(userAddress);
   }
+
+  constructor() {
+  this.initializeMockData();
+}
 }
 
 export const coinRewardsService = new CoinRewardsService();

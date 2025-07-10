@@ -1,171 +1,172 @@
 
-// src/components/pages/EnhancedHomePage.tsx - UPDATED with Coin Integration
-import { useState, useEffect } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
-import { useUserStore } from '@/store/userStore';
-import { useAIPredictions } from '@/hooks/useAIPredictions';
-import { useAllMarkets } from '@/hooks/useAllMarkets';
-import { SwipeInterface } from '@/components/swipe/SwipeInterface';
-import { CoinWallet } from '@/components/coins/CoinWallet';
-import { CoinMinting } from '@/components/coins/CoinMinting';
-import { blockchainService } from '@/services/blockchain/service';
-import { coinsService } from '@/services/coins/coinsService';
-import { coinRewardsService } from '@/services/coins/coinRewards';
-import { getUserAvatar, getUserDisplayName, hasLinkedFarcaster } from '@/utils/userHelpers';
-import { AppPage } from '../../types/navigation';
-import { 
-  Sparkles, 
-  TrendingUp, 
-  RefreshCw, 
+// src/components/pages/EnhancedHomePage.tsx - COMBINED VERSION
+import { useState, useEffect } from "react"
+import { motion } from "framer-motion"
+import { usePrivy } from "@privy-io/react-auth"
+import { useUserStore } from "@/store/userStore"
+import { useAIPredictions } from "@/hooks/useAIPredictions"
+import { useAllMarkets } from "@/hooks/useAllMarkets"
+import { SwipeInterface } from "@/components/swipe/SwipeInterface"
+import { CoinWallet } from "@/components/coins/CoinWallet"
+import { CoinMinting } from "@/components/coins/CoinMinting"
+import { blockchainService } from "@/services/blockchain/service"
+import { coinsService } from "@/services/coins/coinsService"
+import { coinRewardsService } from "@/services/coins/coinRewards"
+import { getUserAvatar, getUserDisplayName, hasLinkedFarcaster } from "@/utils/userHelpers"
+import type { AppPage } from "../../types/navigation"
+import {
+  Sparkles,
+  TrendingUp,
+  Users,
+  RefreshCw,
   Filter,
+  ChevronRight,
   AlertCircle,
+  Zap,
+  Target,
+  Hash,
   ExternalLink,
   Loader2,
-  Coins
-} from 'lucide-react';
+  Coins,
+} from "lucide-react"
 
 interface EnhancedHomePageProps {
-  onNavigate: (page: AppPage) => void;
+  onNavigate: (page: AppPage) => void
 }
 
 interface Bet {
-  id: string;
-  prediction: any;
-  outcome: 'yes' | 'no';
-  amount: number;
-  timestamp: Date;
-  onChain?: boolean;
-  txHash?: string;
+  id: string
+  prediction: any
+  outcome: "yes" | "no"
+  amount: number
+  timestamp: Date
+  onChain?: boolean
+  txHash?: string
 }
 
 export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
-  const { user } = usePrivy();
-  const { user: userProfile, getPrimaryInterests, updateCoinBalances, addCoinEarning } = useUserStore();
-  const { 
-    loading: aiLoading, 
-    predictions: aiPredictions, 
-    error: aiError, 
-    userData, 
+  const { user } = usePrivy()
+  const { user: userProfile, getPrimaryInterests, updateCoinBalances, addCoinEarning } = useUserStore()
+  const {
+    loading: aiLoading,
+    predictions: aiPredictions,
+    error: aiError,
+    userData,
     creatingOnChain,
-    generatePredictions 
-  } = useAIPredictions();
-  const { 
-    loading: marketsLoading, 
-    markets: allMarkets, 
-    error: marketsError, 
-    fetchMarkets 
-  } = useAllMarkets();
-  
-  const [bets, setBets] = useState<Bet[]>([]);
-  const [skippedPredictions, setSkippedPredictions] = useState<any[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [filterCategory, setFilterCategory] = useState<string>('');
-  const [filterTimeframe, setFilterTimeframe] = useState<string>('');
-  const [showCoinWallet, setShowCoinWallet] = useState(false);
-  const [showMintingModal, setShowMintingModal] = useState(false);
-  const [currentMintingResult, setCurrentMintingResult] = useState<any>(null);
-  
-  // Manual Farcaster FID input state
-  const [showManualFarcaster, setShowManualFarcaster] = useState(false);
-  const [manualFid, setManualFid] = useState('');
-  const [isLoadingManual, setIsLoadingManual] = useState(false);
+    generatePredictions,
+  } = useAIPredictions()
+  const { loading: marketsLoading, markets: allMarkets, error: marketsError, fetchMarkets } = useAllMarkets()
 
-  const displayName = getUserDisplayName(user, userProfile);
-  const userAvatar = getUserAvatar(user, userProfile);
-  const hasFC = hasLinkedFarcaster(user, userProfile);
+  const [bets, setBets] = useState<Bet[]>([])
+  const [skippedPredictions, setSkippedPredictions] = useState<any[]>([])
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterCategory, setFilterCategory] = useState<string>("")
+  const [filterTimeframe, setFilterTimeframe] = useState<string>("")
+  const [showCoinWallet, setShowCoinWallet] = useState(false)
+  const [showMintingModal, setShowMintingModal] = useState(false)
+  const [currentMintingResult, setCurrentMintingResult] = useState<any>(null)
+
+  // Manual Farcaster FID input state
+  const [showManualFarcaster, setShowManualFarcaster] = useState(false)
+  const [manualFid, setManualFid] = useState("")
+  const [isLoadingManual, setIsLoadingManual] = useState(false)
+
+  const displayName = getUserDisplayName(user, userProfile)
+  const userAvatar = getUserAvatar(user, userProfile)
+  const hasFC = hasLinkedFarcaster(user, userProfile)
 
   // Determine which predictions to show - REAL DATA ONLY
-  const predictions = hasFC ? aiPredictions : allMarkets;
-  const loading = hasFC ? (aiLoading || creatingOnChain) : marketsLoading;
-  const error = hasFC ? aiError : marketsError;
+  const predictions = hasFC ? aiPredictions : allMarkets
+  const loading = hasFC ? aiLoading || creatingOnChain : marketsLoading
+  const error = hasFC ? aiError : marketsError
 
   // Load real blockchain data on mount
   useEffect(() => {
     if (hasFC && user?.farcaster?.fid && aiPredictions.length === 0 && !aiLoading) {
-      handleGeneratePredictions();
+      handleGeneratePredictions()
     } else if (!hasFC && allMarkets.length === 0 && !marketsLoading) {
-      fetchMarkets();
+      fetchMarkets()
     }
-  }, [user?.farcaster?.fid, hasFC]);
+  }, [user?.farcaster?.fid, hasFC])
 
-  // ✅ NEW: Load user coin balances on mount
+  // Load user coin balances on mount
   useEffect(() => {
     if (user?.wallet?.address) {
-      loadUserCoins();
+      loadUserCoins()
     }
-  }, [user?.wallet?.address]);
+  }, [user?.wallet?.address])
 
   const loadUserCoins = async () => {
-    if (!user?.wallet?.address) return;
-    
+    if (!user?.wallet?.address) return
+
     try {
-      const balances = await coinsService.getUserCoinBalances(user.wallet.address as any);
-      const balanceMap: Record<string, number> = {};
-      
-      balances.forEach(balance => {
-        balanceMap[balance.coinType] = parseFloat(balance.balance.toString()) / 10**18;
-      });
-      
-      updateCoinBalances(balanceMap);
+      const balances = await coinsService.getUserCoinBalances(user.wallet.address as any)
+      const balanceMap: Record<string, number> = {}
+
+      balances.forEach((balance) => {
+        balanceMap[balance.coinType] = Number.parseFloat(balance.balance.toString()) / 10 ** 18
+      })
+
+      updateCoinBalances(balanceMap)
     } catch (error) {
-      console.error('Error loading user coins:', error);
+      console.error("Error loading user coins:", error)
     }
-  };
+  }
 
   const handleGeneratePredictions = async () => {
-    if (!user?.farcaster?.fid) return;
-    
-    setIsGenerating(true);
+    if (!user?.farcaster?.fid) return
+
+    setIsGenerating(true)
     try {
-      await generatePredictions(user.farcaster.fid);
+      await generatePredictions(user.farcaster.fid)
     } catch (err) {
-      console.error('Failed to generate predictions:', err);
+      console.error("Failed to generate predictions:", err)
     } finally {
-      setIsGenerating(false);
+      setIsGenerating(false)
     }
-  };
+  }
 
   const handleManualFarcasterConnect = async () => {
-    if (!manualFid || isNaN(parseInt(manualFid))) {
-      alert('Please enter a valid Farcaster FID number');
-      return;
+    if (!manualFid || isNaN(Number.parseInt(manualFid))) {
+      alert("Please enter a valid Farcaster FID number")
+      return
     }
 
-    setIsLoadingManual(true);
+    setIsLoadingManual(true)
     try {
-      await generatePredictions(parseInt(manualFid));
-      setShowManualFarcaster(false);
-      setManualFid('');
+      await generatePredictions(Number.parseInt(manualFid))
+      setShowManualFarcaster(false)
+      setManualFid("")
     } catch (err) {
-      console.error('Failed to generate predictions with manual FID:', err);
-      alert('Failed to fetch predictions for this FID. Please check the FID and try again.');
+      console.error("Failed to generate predictions with manual FID:", err)
+      alert("Failed to fetch predictions for this FID. Please check the FID and try again.")
     } finally {
-      setIsLoadingManual(false);
+      setIsLoadingManual(false)
     }
-  };
+  }
 
   const handleSkip = (prediction: any) => {
-    setSkippedPredictions(prev => [...prev, prediction]);
-  };
+    setSkippedPredictions((prev) => [...prev, prediction])
+  }
 
-  // ✅ ENHANCED: Betting with coin rewards
-  const handleBet = async (prediction: any, outcome: 'yes' | 'no', amount: number) => {
+  // Enhanced betting with coin rewards
+  const handleBet = async (prediction: any, outcome: "yes" | "no", amount: number) => {
     try {
-      console.log('🎯 Placing bet on blockchain...');
-      
+      console.log("🎯 Placing bet on blockchain...")
+
       if (!user?.wallet?.address) {
-        alert('Please connect your wallet to place bets');
-        return;
+        alert("Please connect your wallet to place bets")
+        return
       }
 
       // Place bet on blockchain
       const result = await blockchainService.placeBet(
         user.wallet.address as `0x${string}`,
-        prediction.marketId || 0,
-        outcome === 'yes',
-        amount.toString()
-      );
+        prediction.marketId || 0, // Use marketId from blockchain
+        outcome === "yes",
+        amount.toString(),
+      )
 
       if (result.success) {
         const newBet: Bet = {
@@ -176,99 +177,93 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
           timestamp: new Date(),
           onChain: true,
           txHash: result.txHash,
-        };
-        
-        setBets(prev => [...prev, newBet]);
-        console.log('✅ Bet placed successfully on blockchain!', result.txHash);
-        
-        // ✅ NEW: Process coin rewards for the bet
-        await processCoinRewards(prediction, outcome, amount, true);
-        
+        }
+
+        setBets((prev) => [...prev, newBet])
+        console.log("✅ Bet placed successfully on blockchain!", result.txHash)
+
+        // Process coin rewards for the bet
+        await processCoinRewards(prediction, outcome, amount, true)
+
         // Show success message
-        alert(`Bet placed successfully! Transaction: ${result.txHash?.slice(0, 10)}...`);
+        alert(`Bet placed successfully! Transaction: ${result.txHash?.slice(0, 10)}...`)
       } else {
-        throw new Error(result.error);
+        throw new Error(result.error)
       }
     } catch (error) {
-      console.error('❌ Error placing bet:', error);
-      alert(`Failed to place bet: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("❌ Error placing bet:", error)
+      alert(`Failed to place bet: ${error instanceof Error ? error.message : "Unknown error"}`)
     }
-  };
+  }
 
-  // ✅ NEW: Process coin rewards for predictions
-  const processCoinRewards = async (
-    prediction: any,
-    outcome: 'yes' | 'no',
-    amount: number,
-    correct: boolean
-  ) => {
-    if (!user?.wallet?.address) return;
+  // Process coin rewards for predictions
+  const processCoinRewards = async (prediction: any, outcome: "yes" | "no", amount: number, correct: boolean) => {
+    if (!user?.wallet?.address) return
 
     try {
-      console.log('🪙 Processing coin rewards...');
-      
+      console.log("🪙 Processing coin rewards...")
+
       // Create prediction result for coin rewards
       const predictionResult = {
         marketId: prediction.marketId || 0,
         userAddress: user.wallet.address as any,
         correct,
-        marketCategory: prediction.category || 'general',
-        odds: outcome === 'yes' ? prediction.outcomes.yes : prediction.outcomes.no,
+        marketCategory: prediction.category || "general",
+        odds: outcome === "yes" ? prediction.outcomes.yes : prediction.outcomes.no,
         streak: coinRewardsService.getUserStreak(user.wallet.address as any),
         isFirstCorrect: bets.length === 0,
         isEarlyPrediction: Date.now() - prediction.createdAt?.getTime() < 24 * 60 * 60 * 1000,
         betAmount: amount,
         winAmount: correct ? amount * 2 : 0,
         timestamp: new Date(),
-      };
+      }
 
       // Show minting modal
-      setCurrentMintingResult(predictionResult);
-      setShowMintingModal(true);
+      setCurrentMintingResult(predictionResult)
+      setShowMintingModal(true)
 
       // Process rewards in background
       const rewardsResult = await coinRewardsService.processPredictionResult(
         predictionResult,
-        {} as any // Mock wallet client for demo
-      );
+        {} as any, // Mock wallet client for demo
+      )
 
       if (rewardsResult.success) {
-        console.log('✅ Coin rewards processed:', rewardsResult.rewards);
-        
+        console.log("✅ Coin rewards processed:", rewardsResult.rewards)
+
         // Add earnings to user store
-        rewardsResult.rewards.forEach(earning => {
-          addCoinEarning(earning);
-        });
+        rewardsResult.rewards.forEach((earning) => {
+          addCoinEarning(earning)
+        })
 
         // Refresh coin balances
-        await loadUserCoins();
+        await loadUserCoins()
       }
-
     } catch (error) {
-      console.error('❌ Error processing coin rewards:', error);
+      console.error("❌ Error processing coin rewards:", error)
     }
-  };
+  }
 
   const handleNeedMore = () => {
     if (hasFC) {
-      handleGeneratePredictions();
+      handleGeneratePredictions()
     } else {
-      fetchMarkets();
+      fetchMarkets()
     }
-  };
+  }
 
   const handleRefresh = () => {
     if (hasFC) {
-      handleGeneratePredictions();
+      handleGeneratePredictions()
     } else {
-      fetchMarkets();
+      fetchMarkets()
     }
-  };
+  }
 
-  const primaryInterests = getPrimaryInterests();
-  const totalPredictionsSeen = bets.length + skippedPredictions.length;
-  const engagementRate = totalPredictionsSeen > 0 ? (bets.length / totalPredictionsSeen) * 100 : 0;
-  const totalWagered = bets.reduce((sum, bet) => sum + bet.amount, 0);
+  const primaryInterests = getPrimaryInterests()
+  const totalPredictionsSeen = bets.length + skippedPredictions.length
+  const engagementRate = totalPredictionsSeen > 0 ? (bets.length / totalPredictionsSeen) * 100 : 0
+  const totalWagered = bets.reduce((sum, bet) => sum + bet.amount, 0)
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -277,70 +272,89 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-4">
             <img
-              src={userAvatar}
+              src={userAvatar || "/placeholder.svg"}
               alt={displayName}
               className="w-12 h-12 rounded-full border-2 border-white shadow-lg"
             />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Welcome back, {displayName}! 👋
-              </h1>
+              <h1 className="text-3xl font-bold text-gray-900">Welcome back, {displayName}! 👋</h1>
               <p className="text-gray-600 mt-1">
-                {hasFC 
+                {hasFC
                   ? "Here are predictions personalized for you based on your Farcaster activity."
-                  : "Browse all prediction markets on the blockchain and start making predictions!"
-                }
+                  : "Browse all prediction markets on the blockchain and start making predictions!"}
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-3">
-            {/* ✅ NEW: Coin Wallet Button */}
+            {/* Coin Wallet Button */}
             <button
               onClick={() => setShowCoinWallet(!showCoinWallet)}
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
-                showCoinWallet ? 'bg-purple-100 border-purple-200 text-purple-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                showCoinWallet
+                  ? "bg-purple-100 border-purple-200 text-purple-700"
+                  : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
               }`}
             >
               <Coins className="w-4 h-4" />
               <span>Coin Wallet</span>
             </button>
-            
+
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`p-2 rounded-lg transition-colors ${
-                showFilters ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                showFilters ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
               <Filter className="w-5 h-5" />
             </button>
-            
+
             <button
               onClick={handleRefresh}
               disabled={isGenerating || loading}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
-              <RefreshCw className={`w-4 h-4 ${(isGenerating || loading) ? 'animate-spin' : ''}`} />
-              <span>{hasFC ? 'Refresh Predictions' : 'Refresh Markets'}</span>
+              <RefreshCw className={`w-4 h-4 ${isGenerating || loading ? "animate-spin" : ""}`} />
+              <span>{hasFC ? "Refresh Predictions" : "Refresh Markets"}</span>
             </button>
           </div>
         </div>
 
-        {/* ✅ NEW: Coin System Status */}
+        {/* Blockchain Status Indicator */}
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+              <div>
+                <h3 className="font-medium text-gray-900">⛓️ Connected to Zora Network</h3>
+                <p className="text-sm text-gray-600">
+                  All markets are live on blockchain • Real money • Real predictions
+                </p>
+              </div>
+            </div>
+
+            {creatingOnChain && (
+              <div className="flex items-center space-x-2 text-blue-600">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm font-medium">Creating markets on-chain...</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Coin System Status */}
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
               <div>
-                <h3 className="font-medium text-gray-900">
-                  🪙 Zora Coins SDK + Uniswap V4 Active
-                </h3>
+                <h3 className="font-medium text-gray-900">🪙 Zora Coins SDK + Uniswap V4 Active</h3>
                 <p className="text-sm text-gray-600">
                   Earn tradeable coins for accurate predictions • Real rewards on every correct bet
                 </p>
               </div>
             </div>
-            
+
             {creatingOnChain && (
               <div className="flex items-center space-x-2 text-purple-600">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -350,20 +364,104 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
           </div>
         </div>
 
-        {/* Rest of the existing component remains the same but add coin integration to stats */}
-        
-        {/* User Stats & Interests - ENHANCED with Coins */}
+        {/* Farcaster Status & Manual Connection */}
+        <div className="bg-white rounded-lg p-4 border mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Users className="w-5 h-5 text-blue-500" />
+              <div>
+                <h3 className="font-medium text-gray-900">
+                  {hasFC ? "Farcaster Connected" : "Get Personalized Predictions"}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {hasFC
+                    ? `Getting personalized predictions from @${user?.farcaster?.username || "your"} activity`
+                    : "Enter your Farcaster ID to get AI-generated predictions based on your interests"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              {hasFC ? (
+                <div className="flex items-center space-x-2 text-green-600">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm font-medium">FID: {user?.farcaster?.fid}</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setShowManualFarcaster(!showManualFarcaster)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1"
+                  >
+                    <Hash className="w-4 h-4" />
+                    <span>Enter FID</span>
+                  </button>
+                  <button
+                    onClick={() => onNavigate("profile")}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Connect
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Manual Farcaster FID Input */}
+          {showManualFarcaster && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-4 pt-4 border-t border-gray-200"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Enter your Farcaster FID to get personalized predictions:
+                  </label>
+                  <div className="flex space-x-3">
+                    <input
+                      type="number"
+                      value={manualFid}
+                      onChange={(e) => setManualFid(e.target.value)}
+                      placeholder="e.g., 3 (Dan Romero)"
+                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <button
+                      onClick={handleManualFarcasterConnect}
+                      disabled={isLoadingManual || !manualFid}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                    >
+                      {isLoadingManual ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                      <span>{isLoadingManual ? "Loading..." : "Generate"}</span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Find your FID at{" "}
+                    <a
+                      href="https://warpcast.com/~/settings"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline inline-flex items-center space-x-1"
+                    >
+                      <span>Warpcast Settings</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </div>
+
+        {/* User Stats & Interests - Enhanced with Coins */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <div className="bg-white rounded-lg p-6 border">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-900">
-                {hasFC ? 'Your Interests' : 'Market Categories'}
-              </h3>
-              <button 
-                onClick={() => onNavigate('profile')}
-                className="text-blue-600 hover:text-blue-700 text-sm"
-              >
-                {hasFC ? 'Edit' : 'Set Preferences'}
+              <h3 className="font-semibold text-gray-900">{hasFC ? "Your Interests" : "Market Categories"}</h3>
+              <button onClick={() => onNavigate("profile")} className="text-blue-600 hover:text-blue-700 text-sm">
+                {hasFC ? "Edit" : "Set Preferences"}
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -381,11 +479,8 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
                   <span className="text-gray-500 text-sm">No interests set</span>
                 )
               ) : (
-                ['crypto', 'tech', 'sports', 'politics', 'general'].map((category) => (
-                  <span
-                    key={category}
-                    className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-medium"
-                  >
+                ["crypto", "tech", "sports", "politics", "general"].map((category) => (
+                  <span key={category} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-medium">
                     #{category}
                   </span>
                 ))
@@ -393,13 +488,17 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
             </div>
           </div>
 
-          {/* ✅ NEW: Coin Stats */}
+          {/* Coin Stats */}
           <div className="bg-white rounded-lg p-6 border">
             <h3 className="font-semibold text-gray-900 mb-3">Coin Portfolio</h3>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Total Coins:</span>
-                <span className="font-medium">{Object.values(userProfile?.coinBalances || {}).reduce((a, b) => a + b, 0).toFixed(0)}</span>
+                <span className="font-medium">
+                  {Object.values(userProfile?.coinBalances || {})
+                    .reduce((a, b) => a + b, 0)
+                    .toFixed(0)}
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Coins Earned:</span>
@@ -439,7 +538,7 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">On-chain Bets:</span>
-                <span className="font-medium">{bets.filter(b => b.onChain).length}</span>
+                <span className="font-medium">{bets.filter((b) => b.onChain).length}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Network:</span>
@@ -450,7 +549,7 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
         </div>
       </div>
 
-      {/* Main Content Grid - ENHANCED */}
+      {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Swipe Interface - Main Column */}
         <div className="lg:col-span-2">
@@ -458,12 +557,12 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-xl font-bold text-gray-900">
-                  {hasFC ? '🎯 AI-Generated Markets' : '📊 All Blockchain Markets'}
+                  {hasFC ? "🎯 AI-Generated Markets" : "📊 All Blockchain Markets"}
                 </h2>
                 {userData && (
                   <div className="flex items-center space-x-2 text-sm text-gray-600">
-                    <img 
-                      src={userData.pfpUrl || userAvatar} 
+                    <img
+                      src={userData.pfpUrl || userAvatar}
                       alt={userData.displayName}
                       className="w-6 h-6 rounded-full"
                     />
@@ -472,13 +571,12 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
                 )}
               </div>
               <p className="text-gray-600">
-                {hasFC 
+                {hasFC
                   ? "AI-generated markets + automatic coin rewards for correct predictions."
-                  : "Real prediction markets with Zora Coins rewards. Connect Farcaster for personalized recommendations."
-                }
+                  : "Real prediction markets with Zora Coins rewards. Connect Farcaster for personalized recommendations."}
               </p>
-              
-              {/* ✅ NEW: Coin Rewards Preview */}
+
+              {/* Coin Rewards Preview */}
               <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
                 <div className="flex items-center space-x-2">
                   <Coins className="w-4 h-4 text-purple-600" />
@@ -488,17 +586,13 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
                 </div>
               </div>
             </div>
-
             <div className="p-6">
-              {/* SwipeInterface component content remains the same */}
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
                   <div className="flex items-center space-x-2">
                     <AlertCircle className="w-5 h-5 text-red-600" />
                     <div>
-                      <h3 className="font-semibold text-red-800">
-                        Error Loading {hasFC ? 'Predictions' : 'Markets'}
-                      </h3>
+                      <h3 className="font-semibold text-red-800">Error Loading {hasFC ? "Predictions" : "Markets"}</h3>
                       <p className="text-red-700 text-sm">{error}</p>
                     </div>
                   </div>
@@ -516,18 +610,22 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
                   <div className="text-center">
                     <Loader2 className="w-12 h-12 text-blue-600 mx-auto mb-4 animate-spin" />
                     <p className="text-gray-600 font-medium">
-                      {creatingOnChain ? 'Creating markets on blockchain...' :
-                       isLoadingManual ? 'Generating personalized predictions...' : 
-                       isGenerating ? 'Generating personalized predictions...' : 
-                       hasFC ? 'Loading predictions...' :
-                       'Loading blockchain markets...'}
+                      {creatingOnChain
+                        ? "Creating markets on blockchain..."
+                        : isLoadingManual
+                          ? "Generating personalized predictions..."
+                          : isGenerating
+                            ? "Generating personalized predictions..."
+                            : hasFC
+                              ? "Loading predictions..."
+                              : "Loading blockchain markets..."}
                     </p>
                     <p className="text-gray-500 text-sm mt-1">
-                      {creatingOnChain ? 'Deploying smart contracts on Zora Network' :
-                       hasFC || isLoadingManual
-                        ? 'Analyzing Farcaster activity with AI'
-                        : 'Fetching real markets from blockchain'
-                      }
+                      {creatingOnChain
+                        ? "Deploying smart contracts on Zora Network"
+                        : hasFC || isLoadingManual
+                          ? "Analyzing Farcaster activity with AI"
+                          : "Fetching real markets from blockchain"}
                     </p>
                   </div>
                 </div>
@@ -535,13 +633,12 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
                 <div className="text-center py-12">
                   <Sparkles className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {hasFC ? 'No Predictions Generated' : 'No Markets Available'}
+                    {hasFC ? "No Predictions Generated" : "No Markets Available"}
                   </h3>
                   <p className="text-gray-600 mb-6">
-                    {hasFC 
+                    {hasFC
                       ? "Generate your first set of personalized predictions to get started."
-                      : "No prediction markets are currently available on the blockchain."
-                    }
+                      : "No prediction markets are currently available on the blockchain."}
                   </p>
                   {hasFC && (
                     <button
@@ -565,16 +662,12 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
           </div>
         </div>
 
-        {/* Sidebar - Enhanced with Coin Integration */}
+        {/* Sidebar - Stats and Activity */}
         <div className="space-y-6">
-          {/* ✅ NEW: Coin Wallet Component */}
-          {showCoinWallet && (
-            <CoinWallet 
-              className="mb-6"
-            />
-          )}
-          
-          {/* Recent Bets - Enhanced with coin indicators */}
+          {/* Coin Wallet Component */}
+          {showCoinWallet && <CoinWallet className="mb-6" />}
+
+          {/* Recent Bets */}
           <div className="bg-white rounded-xl shadow-sm border">
             <div className="p-6 border-b border-gray-200">
               <h3 className="font-bold text-gray-900">💰 Your Blockchain Bets ({bets.length})</h3>
@@ -588,66 +681,135 @@ export function EnhancedHomePage({ onNavigate }: EnhancedHomePageProps) {
                 </div>
               ) : (
                 <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {bets.slice().reverse().map((bet) => (
-                    <div key={bet.id} className="border rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          <span className={`text-xs font-medium px-2 py-1 rounded ${
-                            bet.outcome === 'yes' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {bet.outcome.toUpperCase()}
-                          </span>
-                          {bet.onChain && (
-                            <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
-                              ⛓️ ON-CHAIN
+                  {bets
+                    .slice()
+                    .reverse()
+                    .map((bet) => (
+                      <div key={bet.id} className="border rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <span
+                              className={`text-xs font-medium px-2 py-1 rounded ${
+                                bet.outcome === "yes" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {bet.outcome.toUpperCase()}
                             </span>
-                          )}
-                          {/* ✅ NEW: Coin reward indicator */}
-                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                            🪙 +COINS
-                          </span>
+                            {bet.onChain && (
+                              <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                                ⛓️ ON-CHAIN
+                              </span>
+                            )}
+                            {/* Coin reward indicator */}
+                            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">🪙 +COINS</span>
+                          </div>
+                          <span className="text-xs text-gray-500">{bet.amount} ETH</span>
                         </div>
-                        <span className="text-xs text-gray-500">{bet.amount} ETH</span>
+                        <p className="text-sm font-medium line-clamp-2 text-gray-900">{bet.prediction.question}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-xs text-gray-500">{bet.timestamp.toLocaleTimeString()}</p>
+                          {bet.txHash && (
+                            <a
+                              href={`https://sepolia.explorer.zora.energy/tx/${bet.txHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline flex items-center space-x-1"
+                            >
+                              <span>View TX</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-sm font-medium line-clamp-2 text-gray-900">
-                        {bet.prediction.question}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <p className="text-xs text-gray-500">
-                          {bet.timestamp.toLocaleTimeString()}
-                        </p>
-                        {bet.txHash && (
-                          <a
-                            href={`https://sepolia.explorer.zora.energy/tx/${bet.txHash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-blue-600 hover:underline flex items-center space-x-1"
-                          >
-                            <span>View TX</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Rest of sidebar components remain the same but enhanced with coin references */}
+          {/* Quick Actions */}
+          <div className="bg-white rounded-xl shadow-sm border">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="font-bold text-gray-900">⚡ Quick Actions</h3>
+            </div>
+            <div className="p-6">
+              <div className="space-y-3">
+                <button
+                  onClick={() => onNavigate("markets")}
+                  className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-medium text-blue-900">Browse All Markets</div>
+                    <div className="text-sm text-blue-700">View {allMarkets.length} live markets</div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-blue-600" />
+                </button>
+
+                <button
+                  onClick={() => onNavigate("create")}
+                  className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-medium text-green-900">Create Market</div>
+                    <div className="text-sm text-green-700">Deploy new prediction market</div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-green-600" />
+                </button>
+
+                <button
+                  onClick={() => onNavigate("rewards")}
+                  className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-medium text-purple-900">Collect Rewards</div>
+                    <div className="text-sm text-purple-700">Claim your winnings</div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-purple-600" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Network Info */}
+          <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border border-purple-200">
+            <div className="p-6">
+              <div className="flex items-center space-x-2 mb-3">
+                <Target className="w-5 h-5 text-purple-600" />
+                <h3 className="font-bold text-gray-900">Zora Network</h3>
+              </div>
+              <div className="space-y-3 text-sm">
+                <div className="bg-white bg-opacity-50 rounded-lg p-3">
+                  <p className="text-gray-700">
+                    <span className="font-medium">Live Markets:</span> All predictions are real smart contracts on Zora
+                    blockchain.
+                  </p>
+                </div>
+                <div className="bg-white bg-opacity-50 rounded-lg p-3">
+                  <p className="text-gray-700">
+                    <span className="font-medium">Real Money:</span> Place bets with ETH and win real rewards.
+                  </p>
+                </div>
+                <div className="bg-white bg-opacity-50 rounded-lg p-3">
+                  <p className="text-gray-700">
+                    <span className="font-medium">NFT Collectibles:</span> Successful predictions become collectible
+                    NFTs.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ✅ NEW: Coin Minting Modal */}
+      {/* Coin Minting Modal */}
       <CoinMinting
         predictionResult={currentMintingResult}
         onMintComplete={(rewards) => {
-          console.log('Coin minting completed:', rewards);
-          setShowMintingModal(false);
-          setCurrentMintingResult(null);
+          console.log("Coin minting completed:", rewards)
+          setShowMintingModal(false)
+          setCurrentMintingResult(null)
         }}
       />
     </div>
-  );
+  )
 }

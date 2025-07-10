@@ -34,12 +34,21 @@ export interface OnChainMarket {
   };
   tags: string[];
 }
+export interface UserBet {
+  marketId: number;
+  amount: number;
+  outcome: boolean;
+  timestamp: Date;
+  txHash: string;
+  market?: OnChainMarket; // Optional market details
+}
 
 class BlockchainService {
   
   private publicClient;
   private automatedWalletClient;
   private automatedAccount;
+  private userBets = new Map<Address, UserBet[]>();
 
   constructor() {
     // Public client for reading
@@ -55,6 +64,8 @@ class BlockchainService {
       chain: ZORA_TESTNET,
       transport: http(),
     });
+
+    this.addMockUserBets();
 
     console.log('🔧 Blockchain service initialized');
     console.log('🤖 Automated wallet:', this.automatedAccount.address);
@@ -469,6 +480,14 @@ class BlockchainService {
       });
       
       await waitForTransactionReceipt(wagmiConfig, { hash });
+
+        this.trackUserBet(userAccount, {
+        marketId,
+        amount: parseFloat(amount),
+        outcome,
+        timestamp: new Date(),
+        txHash: hash,
+       });
       
       console.log('✅ Bet placed successfully!');
       console.log('💸 User paid gas fees');
@@ -485,6 +504,83 @@ class BlockchainService {
       };
     }
   }
+
+  // Add new methods
+private trackUserBet(userAddress: Address, bet: UserBet) {
+  const userBets = this.userBets.get(userAddress) || [];
+  userBets.push(bet);
+  this.userBets.set(userAddress, userBets);
+}
+
+async getUserBets(userAddress: Address): Promise<UserBet[]> {
+  try {
+    // Get stored bets
+    const storedBets = this.userBets.get(userAddress) || [];
+    
+    // Enrich with market data
+    const enrichedBets = await Promise.all(
+      storedBets.map(async (bet) => {
+        const market = await this.getMarketById(bet.marketId);
+        return market ? { ...bet, market } : bet;
+      })
+    );
+    
+    return enrichedBets;
+  } catch (error) {
+    console.error('Error fetching user bets:', error);
+    return [];
+  }
+}
+
+async getUserBetsWithStatus(userAddress: Address): Promise<(UserBet & { 
+  status: 'pending' | 'won' | 'lost';
+  payout?: number;
+})[]> {
+  const bets = await this.getUserBets(userAddress);
+  
+  return bets.map(bet => {
+    if (!bet.market) {
+      return { ...bet, status: 'pending' as const };
+    }
+    
+    if (!bet.market.resolved) {
+      return { ...bet, status: 'pending' as const };
+    }
+    
+    const won = bet.market.outcome === bet.outcome;
+    const payout = won ? bet.amount * 2 : 0; // Simplified payout calculation
+    
+    return {
+      ...bet,
+      status: won ? 'won' as const : 'lost' as const,
+      payout,
+    };
+  });
+}
+
+// Add some mock data for demo - call this in constructor
+private addMockUserBets() {
+  // Add some mock bets for demo
+  const mockUserAddress = '0x44e37A9a53EB19F26a2e73aF559C13048Aa4FaE9' as Address;
+  const mockBets: UserBet[] = [
+    {
+      marketId: 0,
+      amount: 0.05,
+      outcome: true,
+      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      txHash: '0x1234567890abcdef...',
+    },
+    {
+      marketId: 1,
+      amount: 0.1,
+      outcome: false,
+      timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      txHash: '0xabcdef1234567890...',
+    },
+  ];
+  
+  this.userBets.set(mockUserAddress, mockBets);
+}
 
   // ===== UTILITY FUNCTIONS =====
   private async getMarketCounter(): Promise<bigint> {

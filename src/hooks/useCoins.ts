@@ -9,7 +9,7 @@ import {
   CoinBalance, 
   CoinEarning, 
   CoinType, 
-  Achievement 
+ 
 } from '@/constants/coins';
 import { Address } from 'viem';
 
@@ -17,7 +17,7 @@ export function useCoins() {
   const { user } = usePrivy();
   const [balances, setBalances] = useState<CoinBalance[]>([]);
   const [earnings, setEarnings] = useState<CoinEarning[]>([]);
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
+ 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +36,7 @@ export function useCoins() {
 
       setBalances(userBalances);
       setEarnings(userEarnings);
-      setAchievements(userAchievements);
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load coin data');
       console.error('Error loading coin data:', err);
@@ -78,7 +78,6 @@ export function useCoins() {
   return {
     balances,
     earnings,
-    achievements,
     loading,
     error,
     refreshData,

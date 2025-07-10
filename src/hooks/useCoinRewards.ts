@@ -3,14 +3,14 @@
 import { useState, useCallback } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { coinRewardsService, PredictionResult } from '@/services/coins/coinRewards';
-import { CoinReward, CoinEarning, Achievement } from '@/constants/coins';
+import { CoinReward, CoinEarning,  } from '@/constants/coins';
 import { Address } from 'viem';
 
 export function useCoinRewards() {
   const { user } = usePrivy();
   const [processing, setProcessing] = useState(false);
   const [lastRewards, setLastRewards] = useState<CoinEarning[]>([]);
-  const [newAchievements, setNewAchievements] = useState<Achievement[]>([]);
+
 
   const processRewards = useCallback(async (
     predictionResult: PredictionResult,
@@ -35,7 +35,7 @@ export function useCoinRewards() {
 
       if (result.success) {
         setLastRewards(result.rewards);
-        setNewAchievements(result.achievements);
+        
         
         console.log(`✅ Processed ${result.rewards.length} coin rewards`);
         console.log(`🏆 Unlocked ${result.achievements.length} new achievements`);
@@ -77,7 +77,7 @@ export function useCoinRewards() {
   return {
     processing,
     lastRewards,
-    newAchievements,
+
     processRewards,
     calculatePotentialRewards,
     getUserStreak,

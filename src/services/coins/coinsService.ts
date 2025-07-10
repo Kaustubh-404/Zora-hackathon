@@ -360,7 +360,7 @@ class CoinsService {
         marketCap: token.marketCap,
         volume24h: token.volume24h,
         holders: token.uniqueHolders,
-        price: token.price,
+       
       };
     } catch (error) {
       console.error(`❌ Error getting ${coinType} stats:`, error);
