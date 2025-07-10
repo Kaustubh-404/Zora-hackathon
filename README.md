@@ -92,7 +92,7 @@ Visit **http://localhost:3000** in your browser 🚀
 
 ## 🗺 Roadmap
 
-- 🔵 Launch on Zora + Base mainnet  
+- 🔵 Launch on Zora + Base testnet  
 - 📱 Mobile PWA with push notifications  
 - 🏆 Prediction syndicates & copy‑trading marketplace  
 - 💰 Uniswap V4 liquidity pools for skill coins  
