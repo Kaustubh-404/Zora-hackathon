@@ -32,6 +32,9 @@ importers:
       '@wagmi/core':
         specifier: ^2.17.3
         version: 2.17.3(@tanstack/query-core@5.80.10)(@types/react@19.1.8)(immer@10.1.1)(react@19.1.0)(typescript@5.8.3)(use-sync-external-store@1.5.0(react@19.1.0))(viem@2.31.3(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@3.25.67))
+      '@zoralabs/coins-sdk':
+        specifier: ^0.2.8
+        version: 0.2.8(abitype@1.0.8(typescript@5.8.3)(zod@3.25.67))(viem@2.31.3(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@3.25.67))
       '@zoralabs/protocol-sdk':
         specifier: ^0.13.10
         version: 0.13.10(abitype@1.0.8(typescript@5.8.3)(zod@3.25.67))(viem@2.31.3(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@3.25.67))
@@ -665,6 +668,10 @@ packages:
     resolution: {integrity: sha512-LMcepvRaS9LYHJGsF0zzmgKCUim/X3N/DQKc4jepAXJ7l8QxJ1PmxJzqplF2Z3FE4PqBAIGyJAQ/w4B5dsqbtQ==}
     peerDependencies:
       react: '>= 16 || ^19.0.0-rc'
+
+  '@hey-api/client-fetch@0.8.4':
+    resolution: {integrity: sha512-SWtUjVEFIUdiJGR2NiuF0njsSrSdTe7WHWkp3BLH3DEl2bRhiflOnBo29NSDdrY90hjtTQiTQkBxUgGOF29Xzg==}
+    deprecated: Starting with v0.73.0, this package is bundled directly inside @hey-api/openapi-ts.
 
   '@hookform/resolvers@5.1.1':
     resolution: {integrity: sha512-J/NVING3LMAEvexJkyTLjruSm7aOFx7QX21pzkiJfMoNG0wl5aFEjLTl7ay7IQb9EWY6AkrBy7tHL2Alijpdcg==}
@@ -1888,6 +1895,13 @@ packages:
 
   '@walletconnect/window-metadata@1.0.1':
     resolution: {integrity: sha512-9koTqyGrM2cqFRW517BPY/iEtUDx2r1+Pwwu5m7sJ7ka79wi3EyqhqcICk/yDmv6jAS1rjKgTKXlEhanYjijcA==}
+
+  '@zoralabs/coins-sdk@0.2.8':
+    resolution: {integrity: sha512-vni9qcdS6/9HUOue7SDir2wHn+SSSDmxfZhBcCzQWdK9NaW/+E5jCWXuQGFgBzKpLc4FN5ktJz36v92BADQE3g==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      abitype: ^1.0.8
+      viem: ^2.21.55
 
   '@zoralabs/protocol-deployments@0.6.1':
     resolution: {integrity: sha512-iDO5EhLrqDw0keudRq9omuSdvHG852de5/apY2p7QLBDxitQuJ/6/jOaq2WB4B6GPVUh2fTd5+CdoSsbJhJv5g==}
@@ -5846,6 +5860,8 @@ snapshots:
     dependencies:
       react: 19.1.0
 
+  '@hey-api/client-fetch@0.8.4': {}
+
   '@hookform/resolvers@5.1.1(react-hook-form@7.58.1(react@19.1.0))':
     dependencies:
       '@standard-schema/utils': 0.3.0
@@ -8351,6 +8367,13 @@ snapshots:
     dependencies:
       '@walletconnect/window-getters': 1.0.1
       tslib: 1.14.1
+
+  '@zoralabs/coins-sdk@0.2.8(abitype@1.0.8(typescript@5.8.3)(zod@3.25.67))(viem@2.31.3(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@3.25.67))':
+    dependencies:
+      '@hey-api/client-fetch': 0.8.4
+      '@zoralabs/protocol-deployments': 0.6.1
+      abitype: 1.0.8(typescript@5.8.3)(zod@3.25.67)
+      viem: 2.31.3(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@3.25.67)
 
   '@zoralabs/protocol-deployments@0.6.1': {}
 
